@@ -14,7 +14,7 @@ const levels = [
     order: 1,
     title: "Cardiopulmonary Resuscitation (CPR) & AED Basics",
     description: "Learn high-quality chest compressions, rescue breathing techniques, and Automated External Defibrillator (AED) safety protocols.",
-    videoUrl: "https://www.youtube.com/embed/cosVBV96E2g",
+    videoUrl: "https://www.youtube.com/embed/BvW4-tKx-H4",
     instructions: [
       "Assess scene safety and verify patient responsiveness by tapping shoulders and shouting.",
       "Call emergency service immediately and retrieve an AED if available.",
@@ -28,21 +28,6 @@ const levels = [
   },
   {
     order: 2,
-    title: "Choking & Airway Obstruction Management",
-    description: "Master abdominal thrusts (Heimlich maneuver), back blows, and infant choking protocols for conscious and unconscious victims.",
-    videoUrl: "https://www.youtube.com/embed/z52XN_1xN40",
-    instructions: [
-      "Identify signs of severe airway obstruction (unable to speak, cough effectively, or breathe).",
-      "Stand behind conscious adult/child, wrap arms around waist, and locate navel.",
-      "Make a fist, place thumb side above navel, perform inward & upward abdominal thrusts until object is expelled.",
-      "For infants, alternate between 5 sharp back slaps and 5 chest thrusts.",
-      "If victim becomes unconscious, lower to ground carefully and initiate CPR starting with chest compressions."
-    ],
-    practicalThreshold: 80,
-    mcqThreshold: 70
-  },
-  {
-    order: 3,
     title: "Severe Bleeding & Shock Control",
     description: "Understand direct pressure, pressure dressings, tourniquet application, and hypovolemic shock position management.",
     videoUrl: "https://www.youtube.com/embed/NxO5Lyl43-4",
@@ -58,10 +43,10 @@ const levels = [
     mcqThreshold: 70
   },
   {
-    order: 4,
+    order: 3,
     title: "Burns & Thermal Injuries",
     description: "Identify 1st, 2nd, and 3rd degree burns, chemical exposures, and proper cooling and dressing procedures.",
-    videoUrl: "https://www.youtube.com/embed/0v5kO_0bUvY",
+    videoUrl: "https://www.youtube.com/embed/EaJmzB8YgS0",
     instructions: [
       "Remove source of heat safely or flush chemical burns with copious running water for at least 20 minutes.",
       "Cool thermal burns immediately under cool (not ice-cold) running water for 10-20 minutes.",
@@ -73,16 +58,31 @@ const levels = [
     mcqThreshold: 70
   },
   {
-    order: 5,
+    order: 4,
     title: "Fractures, Dislocations & Emergency Transport",
     description: "Learn anatomical splinting, joint immobilization, spinal precaution basics, and safe rescue movement.",
-    videoUrl: "https://www.youtube.com/embed/1v0E7aG8x88",
+    videoUrl: "https://www.youtube.com/embed/2v8vlXgGXwE",
     instructions: [
       "Support suspected fracture or dislocation in position found; do NOT attempt to realign broken bones.",
       "Immobilize joint above and joint below suspected fracture site using rigid splint material.",
       "Pad splint to cushion skin and prevent pressure points.",
       "Check circulation, sensation, and movement (CSM) before and after splint application.",
       "Keep patient calm and still while awaiting emergency medical personnel."
+    ],
+    practicalThreshold: 80,
+    mcqThreshold: 70
+  },
+  {
+    order: 5,
+    title: "Choking & Airway Obstruction Management",
+    description: "Master abdominal thrusts (Heimlich maneuver), back blows, and infant choking protocols for conscious and unconscious victims.",
+    videoUrl: "https://www.youtube.com/embed/z52XN_1xN40",
+    instructions: [
+      "Identify signs of severe airway obstruction (unable to speak, cough effectively, or breathe).",
+      "Stand behind conscious adult/child, wrap arms around waist, and locate navel.",
+      "Make a fist, place thumb side above navel, perform inward & upward abdominal thrusts until object is expelled.",
+      "For infants, alternate between 5 sharp back slaps and 5 chest thrusts.",
+      "If victim becomes unconscious, lower to ground carefully and initiate CPR starting with chest compressions."
     ],
     practicalThreshold: 80,
     mcqThreshold: 70

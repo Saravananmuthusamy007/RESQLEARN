@@ -25,7 +25,13 @@ const practicalAttemptSchema = new mongoose.Schema({
   },
   sequenceCorrect: {
     type: Boolean,
-    required: true
+    default: true
+  },
+  sequenceAccuracy: {
+    type: Number,
+    default: 100,
+    min: 0,
+    max: 100
   },
   responseTimeMs: {
     type: Number,
@@ -37,14 +43,39 @@ const practicalAttemptSchema = new mongoose.Schema({
     required: true,
     default: 1
   },
+  mistakes: {
+    type: Number,
+    default: 0
+  },
+  attempts: {
+    type: Number,
+    default: 1
+  },
   compositeScore: {
     type: Number,
     required: true
+  },
+  finalScore: {
+    type: Number
   },
   passed: {
     type: Boolean,
     required: true
   },
+  weakAreas: [
+    {
+      type: String
+    }
+  ],
+  actions: [
+    {
+      action: String,
+      timestamp: Number,
+      correct: Boolean,
+      targetAccuracy: Number,
+      feedback: String
+    }
+  ],
   createdAt: {
     type: Date,
     default: Date.now

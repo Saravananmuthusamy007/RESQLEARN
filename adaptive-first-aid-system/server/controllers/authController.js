@@ -103,3 +103,54 @@ exports.getMe = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+// @desc    Forgot Password - Request reset link or verification
+// @access  Public
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found with that email address.' });
+    }
+    // Return success response indicating user email was found and password reset is allowed
+    res.json({
+      success: true,
+      message: 'Account verified! You can now reset your password.',
+      email: user.email
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send('Server error');
+  }
+};
+
+// @desc    Reset Password with new password
+// @access  Public
+exports.resetPassword = async (req, res) => {
+  const { email, newPassword } = req.body;
+  if (!email || !newPassword) {
+    return res.status(400).json({ message: 'Email and new password are required.' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.json({ success: true, message: 'Password reset successfully! You can now log in.' });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send('Server error');
+  }
+};
+

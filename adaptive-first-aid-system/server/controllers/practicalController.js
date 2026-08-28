@@ -9,9 +9,20 @@ exports.submitAttempt = async (req, res) => {
   try {
     const { levelId } = req.params;
     const userId = req.user.id;
-    const { actionCorrectness, targetAccuracy, sequenceCorrect, responseTimeMs } = req.body;
+    const {
+      actionCorrectness,
+      targetAccuracy,
+      sequenceCorrect,
+      sequenceAccuracy: rawSeqAcc,
+      responseTimeMs,
+      mistakes = 0,
+      attempts = 1,
+      finalScore: inputFinalScore,
+      weakAreas = [],
+      actions = []
+    } = req.body;
 
-    if (actionCorrectness === undefined || targetAccuracy === undefined || sequenceCorrect === undefined) {
+    if (actionCorrectness === undefined || targetAccuracy === undefined) {
       return res.status(400).json({ message: 'Missing required simulation attempt parameters.' });
     }
 
@@ -28,15 +39,44 @@ exports.submitAttempt = async (req, res) => {
       }
     }
 
-    // Calculate composite score using formula
-    // compositeScore = (actionCorrectness * 0.4) + (targetAccuracy * 0.35) + (sequenceCorrect ? 25 : 0)
-    const rawScore = (Number(actionCorrectness) * 0.4) + (Number(targetAccuracy) * 0.35) + (sequenceCorrect ? 25 : 0);
-    const compositeScore = Math.min(100, Math.round(rawScore));
-    const passed = compositeScore >= level.practicalThreshold;
+    const seqAcc = rawSeqAcc !== undefined ? Number(rawSeqAcc) : (sequenceCorrect ? 100 : 50);
+    const seqBool = sequenceCorrect !== undefined ? Boolean(sequenceCorrect) : (seqAcc >= 80);
 
-    // Increment attempt number
+    // Calculate response time score (100 if < 30s, decreasing to 0 at 120s)
+    const respTimeSec = Number(responseTimeMs || 0) / 1000;
+    const timeScore = Math.max(0, Math.min(100, 100 - (respTimeSec - 30) * (100 / 90)));
+
+    // Calculate attempt score
+    const attemptScore = Math.max(20, 100 - (Number(attempts) - 1) * 20);
+
+    // Weighted Score: action (30%), target (25%), sequence (20%), time (15%), attempt (10%)
+    const calculatedScore = Math.round(
+      (Number(actionCorrectness) * 0.30) +
+      (Number(targetAccuracy) * 0.25) +
+      (seqAcc * 0.20) +
+      (timeScore * 0.15) +
+      (attemptScore * 0.10)
+    );
+
+    const compositeScore = inputFinalScore !== undefined ? Math.round(Number(inputFinalScore)) : calculatedScore;
+    const practicalThreshold = level.practicalThreshold || 75;
+    const passed = compositeScore >= practicalThreshold;
+
+    // Increment attempt count in DB
     const previousAttemptsCount = await PracticalAttempt.countDocuments({ user: userId, level: levelId });
     const attemptNumber = previousAttemptsCount + 1;
+
+    // Identify weak areas if not passed from client
+    const derivedWeakAreas = [...weakAreas];
+    if (Number(targetAccuracy) < 60 && !derivedWeakAreas.includes('Target identification')) {
+      derivedWeakAreas.push('Target identification');
+    }
+    if (seqAcc < 60 && !derivedWeakAreas.includes('Action sequence')) {
+      derivedWeakAreas.push('Action sequence');
+    }
+    if (Number(actionCorrectness) < 70 && !derivedWeakAreas.includes('Procedure accuracy')) {
+      derivedWeakAreas.push('Procedure accuracy');
+    }
 
     // Create attempt record
     const attempt = new PracticalAttempt({
@@ -44,16 +84,22 @@ exports.submitAttempt = async (req, res) => {
       level: levelId,
       actionCorrectness: Number(actionCorrectness),
       targetAccuracy: Number(targetAccuracy),
-      sequenceCorrect: Boolean(sequenceCorrect),
+      sequenceCorrect: seqBool,
+      sequenceAccuracy: seqAcc,
       responseTimeMs: Number(responseTimeMs || 0),
       attemptNumber,
+      mistakes: Number(mistakes),
+      attempts: Number(attempts),
       compositeScore,
-      passed
+      finalScore: compositeScore,
+      passed,
+      weakAreas: derivedWeakAreas,
+      actions
     });
 
     await attempt.save();
 
-    // Update Progress model if passed
+    // Update Progress model
     let progress = await Progress.findOne({ user: userId, level: levelId });
     if (!progress) {
       progress = new Progress({
@@ -68,30 +114,29 @@ exports.submitAttempt = async (req, res) => {
     }
     await progress.save();
 
-    // Build sub-metric targeted feedback
+    // Feedback messages
     const feedback = [];
-    if (!sequenceCorrect) {
-      feedback.push('Protocol Sequence Error: Steps were performed out of order. Review step-by-step action guidelines.');
+    if (!seqBool) {
+      feedback.push('Sequence Error: Follow the correct step order for emergency response.');
     }
     if (Number(actionCorrectness) < 80) {
-      feedback.push(`Action Precision Low (${actionCorrectness}%): Focus on proper technique depth and chest compression rates.`);
+      feedback.push(`Action Precision Low (${actionCorrectness}%): Focus on proper technique execution.`);
     }
     if (Number(targetAccuracy) < 80) {
-      feedback.push(`Target Positioning Inaccurate (${targetAccuracy}%): Ensure exact hand/pad placement on target anatomical zones.`);
-    }
-    if (responseTimeMs > 60000) {
-      feedback.push(`Execution Slow (${Math.round(responseTimeMs / 1000)}s): Practice rapid emergency response protocols.`);
+      feedback.push(`Target Positioning Inaccurate (${targetAccuracy}%): Place hands/equipment on exact target zones.`);
     }
     if (feedback.length === 0 && passed) {
-      feedback.push('Excellent Performance! You demonstrated accurate technique, precise target positioning, and correct sequence timing.');
+      feedback.push('Outstanding Performance! Excellent technique, accuracy, and procedure timing.');
     }
 
     res.status(201).json({
       attempt,
       passed,
       compositeScore,
-      practicalThreshold: level.practicalThreshold,
+      finalScore: compositeScore,
+      practicalThreshold,
       feedback,
+      weakAreas: derivedWeakAreas,
       practicalPassed: progress.practicalPassed
     });
   } catch (error) {
