@@ -203,3 +203,48 @@ exports.deleteQuestion = async (req, res) => {
     res.status(500).json({ message: 'Server error deleting question' });
   }
 };
+
+// @desc    Get all users (learners & admins) with profile & progress metrics
+// @route   GET /api/admin/users
+// @access  Private (Admin only)
+exports.getUsers = async (req, res) => {
+  try {
+    const totalLevels = await Level.countDocuments({});
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
+
+    const userProfiles = await Promise.all(
+      users.map(async (u) => {
+        const progresses = await Progress.find({ user: u._id, levelCompleted: true });
+        const practicalCount = await PracticalAttempt.countDocuments({ user: u._id, passed: true });
+        const mcqCount = await MCQAttempt.countDocuments({ user: u._id, passed: true });
+        const completedLevelsCount = progresses.length;
+        const isMasterEligible = completedLevelsCount >= totalLevels && totalLevels > 0;
+
+        return {
+          id: u._id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          avatar: u.avatar || 'avatar-1',
+          phone: u.phone || '',
+          bio: u.bio || '',
+          emergencyContactName: u.emergencyContactName || '',
+          emergencyContactPhone: u.emergencyContactPhone || '',
+          medicalNotes: u.medicalNotes || '',
+          createdAt: u.createdAt,
+          completedLevelsCount,
+          totalLevelsCount: totalLevels,
+          practicalPassedCount: practicalCount,
+          mcqPassedCount: mcqCount,
+          isMasterEligible
+        };
+      })
+    );
+
+    res.json(userProfiles);
+  } catch (error) {
+    console.error('Error fetching admin users:', error.message);
+    res.status(500).json({ message: 'Server error fetching users' });
+  }
+};
+

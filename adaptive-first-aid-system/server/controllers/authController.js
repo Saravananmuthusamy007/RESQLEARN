@@ -44,7 +44,13 @@ exports.register = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        avatar: user.avatar,
+        phone: user.phone,
+        bio: user.bio,
+        emergencyContactName: user.emergencyContactName,
+        emergencyContactPhone: user.emergencyContactPhone,
+        medicalNotes: user.medicalNotes
       }
     });
   } catch (error) {
@@ -82,7 +88,13 @@ exports.login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        avatar: user.avatar,
+        phone: user.phone,
+        bio: user.bio,
+        emergencyContactName: user.emergencyContactName,
+        emergencyContactPhone: user.emergencyContactPhone,
+        medicalNotes: user.medicalNotes
       }
     });
   } catch (error) {
@@ -101,6 +113,38 @@ exports.getMe = async (req, res) => {
   } catch (error) {
     console.error(error.message);
     res.status(500).send('Server error');
+  }
+};
+
+// @desc    Update user profile details & avatar picture
+// @access  Private
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, avatar, phone, bio, emergencyContactName, emergencyContactPhone, medicalNotes } = req.body;
+    
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (name !== undefined) user.name = name;
+    if (avatar !== undefined) user.avatar = avatar;
+    if (phone !== undefined) user.phone = phone;
+    if (bio !== undefined) user.bio = bio;
+    if (emergencyContactName !== undefined) user.emergencyContactName = emergencyContactName;
+    if (emergencyContactPhone !== undefined) user.emergencyContactPhone = emergencyContactPhone;
+    if (medicalNotes !== undefined) user.medicalNotes = medicalNotes;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully!',
+      user
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error.message);
+    res.status(500).json({ message: 'Server error updating profile' });
   }
 };
 

@@ -5,11 +5,13 @@ const {
   getQuestions,
   createQuestion,
   updateQuestion,
-  deleteQuestion
+  deleteQuestion,
+  getUsers
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 router.get('/analytics', protect, adminOnly, getAnalytics);
+router.get('/users', protect, adminOnly, getUsers);
 router.get('/questions', protect, adminOnly, getQuestions);
 router.post('/questions', protect, adminOnly, createQuestion);
 router.put('/questions/:id', protect, adminOnly, updateQuestion);

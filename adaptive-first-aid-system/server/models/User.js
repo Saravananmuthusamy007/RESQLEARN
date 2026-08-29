@@ -22,6 +22,30 @@ const userSchema = new mongoose.Schema({
     enum: ['learner', 'admin'],
     default: 'learner'
   },
+  avatar: {
+    type: String,
+    default: 'avatar-1'
+  },
+  phone: {
+    type: String,
+    default: ''
+  },
+  bio: {
+    type: String,
+    default: 'Passionate first-aid learner dedicated to saving lives.'
+  },
+  emergencyContactName: {
+    type: String,
+    default: ''
+  },
+  emergencyContactPhone: {
+    type: String,
+    default: ''
+  },
+  medicalNotes: {
+    type: String,
+    default: ''
+  },
   createdAt: {
     type: Date,
     default: Date.now

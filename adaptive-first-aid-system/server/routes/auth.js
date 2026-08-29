@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, getMe, forgotPassword, resetPassword } = require('../controllers/authController');
+const { register, login, getMe, updateProfile, forgotPassword, resetPassword } = require('../controllers/authController');
 const { registerValidator, loginValidator } = require('../middleware/validators');
 const { protect } = require('../middleware/authMiddleware');
 const { authLimiter } = require('../middleware/rateLimiter');
@@ -29,6 +29,11 @@ router.post('/reset-password', authLimiter, resetPassword);
 // @desc    Get current logged in user
 // @access  Private
 router.get('/me', protect, getMe);
+
+// @route   PUT /api/auth/profile
+// @desc    Update user profile & avatar picture
+// @access  Private
+router.put('/profile', protect, updateProfile);
 
 module.exports = router;
 

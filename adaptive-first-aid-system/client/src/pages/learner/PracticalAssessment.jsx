@@ -147,7 +147,8 @@ const PracticalAssessment = () => {
     );
   }
 
-  const levelConfig = LEVEL_SIMULATION_CONFIGS[Number(levelId)] || LEVEL_SIMULATION_CONFIGS[1];
+  const levelOrder = level?.order || (parseInt(levelId, 10) || 1);
+  const levelConfig = LEVEL_SIMULATION_CONFIGS[levelOrder] || LEVEL_SIMULATION_CONFIGS[1];
 
   return (
     <div className="max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:px-8 bg-slate-950 min-h-screen text-slate-100">
@@ -196,14 +197,14 @@ const PracticalAssessment = () => {
       />
 
       {/* Embedded Phaser 3 Interactive Canvas */}
-      <PhaserGame levelId={levelId} eventBridge={eventBridge} />
+      <PhaserGame levelId={levelOrder} eventBridge={eventBridge} />
 
       {/* Action Toast Feedback Overlay */}
       <ActionFeedback feedback={feedback} />
 
       {/* Interactive Solution & Step Walkthrough Modal */}
       <InteractiveSolutionGuide
-        levelId={levelId}
+        levelId={levelOrder}
         isOpen={showSolutionModal}
         onClose={() => setShowSolutionModal(false)}
       />

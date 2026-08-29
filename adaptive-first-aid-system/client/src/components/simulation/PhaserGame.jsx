@@ -29,7 +29,8 @@ const PhaserGame = ({ levelId = 1, eventBridge = {} }) => {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const SceneClass = SCENE_MAP[Number(levelId)] || Level1CPRScene;
+    const levelNum = typeof levelId === 'number' ? levelId : (parseInt(levelId, 10) || 1);
+    const SceneClass = SCENE_MAP[levelNum] || Level1CPRScene;
 
     // Enhanced Anti-Flicker Canvas & Renderer Configuration
     const config = {
