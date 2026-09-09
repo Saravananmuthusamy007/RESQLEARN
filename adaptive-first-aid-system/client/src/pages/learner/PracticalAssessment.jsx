@@ -5,12 +5,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
 import { submitPracticalAttempt } from '../../services/simulationApi';
 import PhaserGame from '../../components/simulation/PhaserGame';
+import RealisticSimulationWrapper from '../../components/simulation/realistic/RealisticSimulationWrapper';
 import SimulationHUD from '../../components/simulation/SimulationHUD';
 import ActionFeedback from '../../components/simulation/ActionFeedback';
 import SimulationResult from '../../components/simulation/SimulationResult';
 import InteractiveSolutionGuide from '../../components/practical/InteractiveSolutionGuide';
 import { LEVEL_SIMULATION_CONFIGS } from '../../simulations/common/SimulationConfig';
-import { ArrowLeft, Lightbulb, RefreshCw, Lock } from 'lucide-react';
+import { ArrowLeft, Lightbulb, RefreshCw, Lock, Sparkles, Gamepad2 } from 'lucide-react';
 
 const PracticalAssessment = () => {
   const { levelId } = useParams();
@@ -20,6 +21,7 @@ const PracticalAssessment = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showSolutionModal, setShowSolutionModal] = useState(false);
+  const [simEngine, setSimEngine] = useState('realistic'); // 'realistic' (framer-motion) or 'phaser'
 
   // Simulation State
   const [currentStep, setCurrentStep] = useState('OBSERVE_VICTIM');
@@ -162,13 +164,37 @@ const PracticalAssessment = () => {
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          {/* Simulation Engine Mode Selector Toggle */}
+          <div className="flex items-center bg-slate-900 border border-slate-700 p-1 rounded-xl text-xs">
+            <button
+              onClick={() => setSimEngine('realistic')}
+              className={`px-3 py-1 rounded-lg font-bold flex items-center gap-1.5 transition ${
+                simEngine === 'realistic'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Realistic Motion Lab
+            </button>
+            <button
+              onClick={() => setSimEngine('phaser')}
+              className={`px-3 py-1 rounded-lg font-bold flex items-center gap-1.5 transition ${
+                simEngine === 'phaser'
+                  ? 'bg-slate-700 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Gamepad2 className="w-3.5 h-3.5" /> Classic Canvas
+            </button>
+          </div>
+
           {/* Kids Learn & Solution Guide Button */}
           <button
             onClick={() => setShowSolutionModal(true)}
             className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 rounded-xl shadow-lg transition transform hover:scale-105"
           >
             <Lightbulb className="w-4 h-4 text-slate-950 fill-slate-950" />
-            <span>💡 Learn & Show Solution</span>
+            <span>💡 Learn & Solution</span>
           </button>
 
           <button
@@ -179,7 +205,7 @@ const PracticalAssessment = () => {
           </button>
 
           <span className="px-3 py-1 bg-cyan-950 text-cyan-400 border border-cyan-800 text-xs font-semibold rounded-full">
-            Level {level.order} Interactive Assessment
+            Level {level.order}
           </span>
         </div>
       </div>
@@ -196,8 +222,12 @@ const PracticalAssessment = () => {
         estimatedScore={estimatedScore}
       />
 
-      {/* Embedded Phaser 3 Interactive Canvas */}
-      <PhaserGame levelId={levelOrder} eventBridge={eventBridge} />
+      {/* Interactive Simulation Engine (Framer Motion Realistic or Phaser 3 Canvas) */}
+      {simEngine === 'realistic' ? (
+        <RealisticSimulationWrapper levelId={levelOrder} eventBridge={eventBridge} />
+      ) : (
+        <PhaserGame levelId={levelOrder} eventBridge={eventBridge} />
+      )}
 
       {/* Action Toast Feedback Overlay */}
       <ActionFeedback feedback={feedback} />

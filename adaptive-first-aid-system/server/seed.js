@@ -12,7 +12,7 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/first-aid-
 const levels = [
   {
     order: 1,
-    title: "Cardiopulmonary Resuscitation (CPR) & AED Basics",
+    title: "CPR & Response Check",
     description: "Learn high-quality chest compressions, rescue breathing techniques, and Automated External Defibrillator (AED) safety protocols.",
     videoUrl: "https://www.youtube.com/embed/BvW4-tKx-H4",
     instructions: [
@@ -28,8 +28,8 @@ const levels = [
   },
   {
     order: 2,
-    title: "Severe Bleeding & Shock Control",
-    description: "Understand direct pressure, pressure dressings, tourniquet application, and hypovolemic shock position management.",
+    title: "Wound Care & Bleeding Control",
+    description: "Master direct pressure application, sterile dressing placement, tourniquet protocols, and shock prevention.",
     videoUrl: "https://www.youtube.com/embed/NxO5Lyl43-4",
     instructions: [
       "Put on protective gloves before approaching the victim.",
@@ -44,8 +44,8 @@ const levels = [
   },
   {
     order: 3,
-    title: "Burns & Thermal Injuries",
-    description: "Identify 1st, 2nd, and 3rd degree burns, chemical exposures, and proper cooling and dressing procedures.",
+    title: "Burns Management",
+    description: "Assess 1st, 2nd, and 3rd degree burns, chemical exposures, cool water irrigation, and sterile non-adherent dressing.",
     videoUrl: "https://www.youtube.com/embed/EaJmzB8YgS0",
     instructions: [
       "Remove source of heat safely or flush chemical burns with copious running water for at least 20 minutes.",
@@ -59,37 +59,38 @@ const levels = [
   },
   {
     order: 4,
-    title: "Fractures, Dislocations & Emergency Transport",
-    description: "Learn anatomical splinting, joint immobilization, spinal precaution basics, and safe rescue movement.",
-    videoUrl: "https://www.youtube.com/embed/2v8vlXgGXwE",
+    title: "Choking Response",
+    description: "Identify severe airway obstruction and deliver effective back blows and abdominal thrusts (Heimlich maneuver).",
+    videoUrl: "https://www.youtube.com/embed/z52XN_1xN40",
     instructions: [
-      "Support suspected fracture or dislocation in position found; do NOT attempt to realign broken bones.",
-      "Immobilize joint above and joint below suspected fracture site using rigid splint material.",
-      "Pad splint to cushion skin and prevent pressure points.",
-      "Check circulation, sensation, and movement (CSM) before and after splint application.",
-      "Keep patient calm and still while awaiting emergency medical personnel."
+      "Identify signs of severe airway obstruction (unable to speak, cough effectively, or breathe).",
+      "Stand behind conscious adult/child, wrap arms around waist, and locate navel.",
+      "Make a fist, place thumb side above navel and well below ribcage.",
+      "Perform quick inward & upward abdominal thrusts until object is expelled or victim becomes unresponsive.",
+      "For conscious choking, deliver 5 sharp back slaps between shoulder blades alternating with 5 abdominal thrusts.",
+      "If victim becomes unconscious, carefully lower to floor and initiate CPR starting with chest compressions."
     ],
     practicalThreshold: 80,
     mcqThreshold: 70
   },
   {
     order: 5,
-    title: "Choking & Airway Obstruction Management",
-    description: "Master abdominal thrusts (Heimlich maneuver), back blows, and infant choking protocols for conscious and unconscious victims.",
-    videoUrl: "https://www.youtube.com/embed/z52XN_1xN40",
+    title: "Fracture & Sprain Support",
+    description: "Immobilize bone fractures, apply padded rigid splints across proximal/distal joints, and monitor neurovascular circulation.",
+    videoUrl: "https://www.youtube.com/embed/2v8vlXgGXwE",
     instructions: [
-      "Identify signs of severe airway obstruction (unable to speak, cough effectively, or breathe).",
-      "Stand behind conscious adult/child, wrap arms around waist, and locate navel.",
-      "Make a fist, place thumb side above navel, perform inward & upward abdominal thrusts until object is expelled.",
-      "For infants, alternate between 5 sharp back slaps and 5 chest thrusts.",
-      "If victim becomes unconscious, lower to ground carefully and initiate CPR starting with chest compressions."
+      "Support suspected fracture or dislocation in position found; do NOT attempt to realign broken bones.",
+      "Immobilize joint above and joint below suspected fracture site using rigid splint material.",
+      "Pad splint to cushion skin and prevent localized pressure points.",
+      "Check circulation, sensation, and movement (CSM / PMS) before and after splint application.",
+      "Keep patient calm and still while awaiting emergency medical personnel."
     ],
     practicalThreshold: 80,
     mcqThreshold: 70
   }
 ];
 
-// Questions definition mapped by level order
+// Questions definition mapped by level order (1 to 5)
 const questionsData = {
   1: [
     {
@@ -137,11 +138,103 @@ const questionsData = {
       options: ["At least 1 inch (2.5 cm)", "At least 2 inches (5-6 cm)", "At least 3.5 inches (9 cm)", "Depth does not matter as long as rate is fast"],
       correctOptionIndex: 1,
       difficulty: "hard",
-      tags: ["technique", "depth"],
+      tags: ["technique", "precision"],
       explanation: "Adult chest compressions require a depth of at least 2 inches (5-6 cm) to promote blood flow."
     }
   ],
   2: [
+    {
+      questionText: "What is the primary first-aid technique to stop severe external bleeding?",
+      options: ["Apply ice pack", "Apply direct, continuous pressure over the wound", "Elevate head", "Pour alcohol over wound"],
+      correctOptionIndex: 1,
+      difficulty: "easy",
+      tags: ["technique", "protocol"],
+      explanation: "Direct, firm pressure is the single most effective method to stop acute bleeding."
+    },
+    {
+      questionText: "What personal protective equipment (PPE) should be used first before addressing bleeding?",
+      options: ["Sterile medical gloves", "Safety goggles only", "Heavy leather gloves", "No PPE is needed"],
+      correctOptionIndex: 0,
+      difficulty: "easy",
+      tags: ["safety", "sequence"],
+      explanation: "Wearing protective gloves prevents bloodborne pathogen exposure."
+    },
+    {
+      questionText: "Where should a commercial tourniquet be applied on an extremity with uncontrolled arterial bleeding?",
+      options: ["Directly over the bleeding joint", "2 to 3 inches above the wound (proximal to heart)", "2 inches below the wound", "On the neck"],
+      correctOptionIndex: 1,
+      difficulty: "medium",
+      tags: ["target-area", "safety"],
+      explanation: "Tourniquets must be placed 2-3 inches above the bleeding site and never directly over a joint."
+    },
+    {
+      questionText: "If blood soaks through the initial sterile gauze on a severe wound, what should you do?",
+      options: ["Remove the soaked gauze and wipe the wound", "Add additional dressings on top and maintain firm pressure", "Wash the wound with tap water", "Leave the wound open to air"],
+      correctOptionIndex: 1,
+      difficulty: "medium",
+      tags: ["technique", "protocol"],
+      explanation: "Never remove blood-soaked dressings as this disrupts clotting; apply more gauze on top."
+    },
+    {
+      questionText: "What position helps manage hypovolemic shock in a victim with severe blood loss (no spinal injury)?",
+      options: ["Sitting upright", "Lying flat with legs elevated 6-12 inches", "Standing up", "Prone position on stomach"],
+      correctOptionIndex: 1,
+      difficulty: "hard",
+      tags: ["sequence", "technique"],
+      explanation: "Elevating legs 6-12 inches promotes venous return to critical internal organs during shock."
+    },
+    {
+      questionText: "How tight should a commercial windlass tourniquet be secured?",
+      options: ["Until the patient reports mild discomfort", "Until the distal bright red arterial bleeding stops and pulse disappears", "Only finger-tight", "Until the limb turns completely blue"],
+      correctOptionIndex: 1,
+      difficulty: "hard",
+      tags: ["technique", "precision", "safety"],
+      explanation: "Tighten the windlass until the bleeding stops completely and the distal pulse is absent."
+    }
+  ],
+  3: [
+    {
+      questionText: "What is the recommended initial cooling treatment for thermal burn injuries?",
+      options: ["Apply ice or ice water", "Cool under cool running water for 10-20 minutes", "Apply butter or oils", "Pop blisters immediately"],
+      correctOptionIndex: 1,
+      difficulty: "easy",
+      tags: ["technique", "safety"],
+      explanation: "Cool running tap water reduces thermal tissue damage safely without inducing hypothermia."
+    },
+    {
+      questionText: "Why should you NOT apply ice directly to a burn injury?",
+      options: ["It melts too quickly", "Ice causes further tissue ischemia and frostbite damage", "It makes the skin too soft", "It increases bleeding"],
+      correctOptionIndex: 1,
+      difficulty: "easy",
+      tags: ["safety", "technique"],
+      explanation: "Extreme cold from ice causes vasoconstriction and exacerbates tissue necrosis."
+    },
+    {
+      questionText: "How should chemical burns on the skin be managed immediately?",
+      options: ["Cover immediately with plastic wrap", "Flush continuously with water for at least 20 minutes", "Neutralize with acid/alkali solution", "Wipe with towel"],
+      correctOptionIndex: 1,
+      difficulty: "medium",
+      tags: ["technique", "timing"],
+      explanation: "Copious water flushing for 20 minutes dilutes and removes hazardous corrosive chemicals."
+    },
+    {
+      questionText: "Why must rings, watches, and tight jewelry be removed early from a burned extremity?",
+      options: ["They are flammable", "Rapid swelling (edema) can cause severe circulatory restriction and gangrene", "To prevent staining the jewelry", "Hospital regulations"],
+      correctOptionIndex: 1,
+      difficulty: "medium",
+      tags: ["sequence", "safety", "protocol"],
+      explanation: "Thermal injuries cause rapid edema, turning constricting items into tourniquets that cut off circulation."
+    },
+    {
+      questionText: "What type of dressing should be applied over a second-degree burn with blisters?",
+      options: ["Adhesive tape bandage", "Loose, sterile, non-adherent dressing", "Cotton wool directly on blisters", "Ointment soaked cloth"],
+      correctOptionIndex: 1,
+      difficulty: "hard",
+      tags: ["technique", "target-area"],
+      explanation: "A sterile non-adherent dressing protects blistered skin without tearing newly forming tissue upon removal."
+    }
+  ],
+  4: [
     {
       questionText: "How do you identify severe airway obstruction in a conscious adult choking victim?",
       options: ["Victim is coughing forcefully", "Victim cannot speak, breathe, or cough effectively", "Victim asks for water", "Victim sneezes repeatedly"],
@@ -149,6 +242,14 @@ const questionsData = {
       difficulty: "easy",
       tags: ["technique", "safety"],
       explanation: "Inability to speak or produce effective cough indicates complete airway blockage."
+    },
+    {
+      questionText: "Where should back blows be delivered to relieve choking in a conscious victim?",
+      options: ["Directly on lower spine", "Between the shoulder blades with the heel of your hand", "On the neck", "On the chest"],
+      correctOptionIndex: 1,
+      difficulty: "easy",
+      tags: ["target-area", "technique"],
+      explanation: "Deliver up to 5 sharp back blows between the shoulder blades using the heel of your hand."
     },
     {
       questionText: "Where should abdominal thrusts (Heimlich maneuver) be positioned on a conscious adult?",
@@ -159,59 +260,31 @@ const questionsData = {
       explanation: "Place your fist thumb-side in slightly above the navel, well below the chest breastbone."
     },
     {
-      questionText: "What action should be taken if a conscious choking victim becomes unresponsive?",
+      questionText: "What direction should abdominal thrusts be directed during the Heimlich maneuver?",
+      options: ["Downward toward pelvis", "Directly inward and upward into abdomen", "Horizontal toward spine only", "Side to side"],
+      correctOptionIndex: 1,
+      difficulty: "medium",
+      tags: ["technique", "precision"],
+      explanation: "Inward and upward thrusts elevate the diaphragm, creating an artificial cough to expel the foreign body."
+    },
+    {
+      questionText: "What action should be taken immediately if a conscious choking victim becomes unresponsive?",
       options: ["Perform 5 back slaps", "Lower victim carefully to the ground and initiate CPR compressions", "Give water", "Continue abdominal thrusts on ground"],
       correctOptionIndex: 1,
       difficulty: "hard",
-      tags: ["sequence", "safety"],
+      tags: ["sequence", "safety", "protocol"],
       explanation: "If unresponsiveness occurs, lower the victim and start CPR chest compressions immediately."
     }
   ],
-  3: [
-    {
-      questionText: "What is the primary first-aid technique to stop severe external bleeding?",
-      options: ["Apply ice pack", "Apply direct, continuous pressure over the wound", "Elevate head", "Pour alcohol over wound"],
-      correctOptionIndex: 1,
-      difficulty: "easy",
-      tags: ["technique"],
-      explanation: "Direct, firm pressure is the single most effective method to stop acute bleeding."
-    },
-    {
-      questionText: "Where should a commercial tourniquet be applied on an extremity with uncontrolled arterial bleeding?",
-      options: ["Directly over the bleeding joint", "2 to 3 inches above the wound (proximal to heart)", "2 inches below the wound", "On the neck"],
-      correctOptionIndex: 1,
-      difficulty: "medium",
-      tags: ["target-area", "safety"],
-      explanation: "Tourniquets must be placed 2-3 inches above the bleeding site and never over joints."
-    },
-    {
-      questionText: "What position helps manage hypovolemic shock in a victim with severe blood loss (no spinal injury)?",
-      options: ["Sitting upright", "Lying flat with legs elevated 6-12 inches", "Standing up", "Prone position on stomach"],
-      correctOptionIndex: 1,
-      difficulty: "hard",
-      tags: ["sequence", "technique"],
-      explanation: "Elevating legs 6-12 inches promotes venous return to critical internal organs during shock."
-    }
-  ],
-  4: [
-    {
-      questionText: "What is the recommended initial cooling treatment for thermal burn injuries?",
-      options: ["Apply ice or ice water", "Cool under cool running water for 10-20 minutes", "Apply butter or oils", "Pop blisters immediately"],
-      correctOptionIndex: 1,
-      difficulty: "easy",
-      tags: ["technique", "safety"],
-      explanation: "Cool running tap water reduces thermal tissue damage safely without inducing hypothermia."
-    },
-    {
-      questionText: "How should chemical burns on the skin be managed?",
-      options: ["Cover immediately with plastic wrap", "Flush continuously with water for at least 20 minutes", "Neutralize with acid/alkali solution", "Wipe with towel"],
-      correctOptionIndex: 1,
-      difficulty: "medium",
-      tags: ["technique", "timing"],
-      explanation: "Copious water flushing for 20 minutes dilutes and removes hazardous corrosive chemicals."
-    }
-  ],
   5: [
+    {
+      questionText: "What is the very first rule when attending to a suspected limb fracture?",
+      options: ["Realign broken bones before splinting", "Support the injured limb in the position found without moving it", "Apply ice directly to exposed bone", "Have patient walk on it"],
+      correctOptionIndex: 1,
+      difficulty: "easy",
+      tags: ["safety", "technique"],
+      explanation: "Support the limb in the position found; never attempt to force broken bones back into place."
+    },
     {
       questionText: "What rule must be followed when immobilizing a suspected limb fracture with a splint?",
       options: ["Realign broken bones before splinting", "Immobilize the joint above and joint below the fracture site", "Apply splint tightly until pale", "Only wrap bandage without splint"],
@@ -221,12 +294,28 @@ const questionsData = {
       explanation: "A proper splint stabilizes both the joint above and joint below the fracture."
     },
     {
-      questionText: "What check must be performed before and after applying a rigid splint?",
-      options: ["Blood pressure check", "Circulation, Sensation, and Movement (CSM) check distal to injury", "Pupil response check", "Blood sugar test"],
+      questionText: "What critical neurovascular check must be performed before and after applying a rigid splint?",
+      options: ["Blood pressure check", "Circulation, Sensation, and Movement (CSM / PMS) distal to injury", "Pupil response check", "Blood sugar test"],
+      correctOptionIndex: 1,
+      difficulty: "medium",
+      tags: ["sequence", "safety", "protocol"],
+      explanation: "Checking CSM distal to the injury ensures splinting does not compromise blood circulation or nerve function."
+    },
+    {
+      questionText: "How should a sprain or strain be managed initially in the field?",
+      options: ["RICE protocol: Rest, Ice, Compression, Elevation", "Immediate hot bath and vigorous massage", "Encourage running to loosen muscle", "Tight tourniquet application"],
+      correctOptionIndex: 0,
+      difficulty: "easy",
+      tags: ["technique", "protocol"],
+      explanation: "R.I.C.E. (Rest, Ice, Compression, Elevation) limits internal bleeding and tissue swelling."
+    },
+    {
+      questionText: "If an open fracture exhibits protruding bone through the skin, what is the proper wound management?",
+      options: ["Push the bone back under the skin", "Cover with sterile moist gauze dressing and splint without touching bone", "Apply chemical disinfectant directly to bone", "Wrap tightly with tourniquet"],
       correctOptionIndex: 1,
       difficulty: "hard",
-      tags: ["sequence", "safety"],
-      explanation: "Checking CSM ensures splinting does not compromise blood circulation or nerve function."
+      tags: ["technique", "safety", "protocol"],
+      explanation: "Never push protruding bones back into the wound; cover with sterile dressing and immobilize."
     }
   ]
 };

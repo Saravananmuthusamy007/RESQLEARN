@@ -12,8 +12,8 @@ const SCENE_MAP = {
   1: Level1CPRScene,
   2: Level2BleedingScene,
   3: Level3BurnScene,
-  4: Level4FractureScene,
-  5: Level5ChokingScene
+  4: Level5ChokingScene,
+  5: Level4FractureScene
 };
 
 const PhaserGame = ({ levelId = 1, eventBridge = {} }) => {

@@ -8,6 +8,7 @@ const practicalRoutes = require('./routes/practical');
 const mcqRoutes = require('./routes/mcq');
 const adminRoutes = require('./routes/admin');
 const certificateRoutes = require('./routes/certificate');
+const feedbackRoutes = require('./routes/feedback');
 
 dotenv.config();
 
@@ -24,6 +25,8 @@ app.use('/api/practical', practicalRoutes);
 app.use('/api/mcq', mcqRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/certificate', certificateRoutes);
+app.use('/api/certificates', certificateRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running...');

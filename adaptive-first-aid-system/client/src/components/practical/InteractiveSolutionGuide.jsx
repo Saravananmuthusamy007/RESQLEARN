@@ -41,19 +41,7 @@ export const LEVEL_SOLUTIONS = {
     ]
   },
   4: {
-    title: 'Level 4: Limb Fracture Immobilization Solution Guide 🦴',
-    subtitle: 'Splinting broken bones safely',
-    badgeColor: 'bg-indigo-600',
-    steps: [
-      { step: 1, action: 'INSPECT_INJURY_SITE', title: 'Support & Inspect Fracture', icon: '🦾', text: 'Support injured limb in position found. Do NOT try to straighten bone.' },
-      { step: 2, action: 'CHECK_CIRCULATION_PMS', title: 'Check Pulse & Sensation (PMS)', icon: '👉', text: 'Check pulse, finger movement, and feeling below the injury.' },
-      { step: 3, action: 'APPLY_PADDED_SPLINT', title: 'Place Rigid Padded Splint', icon: '🪵', text: 'Position splint extending past joints above and below the break.' },
-      { step: 4, action: 'SECURE_SPLINT_BANDAGES', title: 'Tie Splint Securely', icon: '🪢', text: 'Tie bandages above and below fracture site to immobilize bone.' },
-      { step: 5, action: 'RECHECK_PMS', title: 'Recheck Circulation & Elevate', icon: '✨', text: 'Verify pulse is intact and rest limb comfortably.' }
-    ]
-  },
-  5: {
-    title: 'Level 5: Choking First Aid (Heimlich) Solution Guide 😮',
+    title: 'Level 4: Choking First Aid (Heimlich) Solution Guide 😮',
     subtitle: 'Relieving severe airway choking in adults & kids',
     badgeColor: 'bg-teal-600',
     steps: [
@@ -62,6 +50,18 @@ export const LEVEL_SOLUTIONS = {
       { step: 3, action: 'MAKE_FIST', title: 'Place Fist Above Navel', icon: '✊', text: 'Make a fist with thumb side against abdomen, slightly above belly button.' },
       { step: 4, action: 'DELIVER_ABDOMINAL_THRUSTS', title: 'Inward & Upward Thrusts', icon: '⬆️', text: 'Grasp fist with other hand and give quick upward thrusts until clear.' },
       { step: 5, action: 'REASSESS_VICTIM', title: 'Check Airway & Breathing', icon: '🌟', text: 'Confirm object is expelled and victim is breathing normally.' }
+    ]
+  },
+  5: {
+    title: 'Level 5: Limb Fracture & Sprain Support Solution Guide 🦴',
+    subtitle: 'Splinting broken bones & joint support safely',
+    badgeColor: 'bg-indigo-600',
+    steps: [
+      { step: 1, action: 'INSPECT_INJURY_SITE', title: 'Support & Inspect Fracture', icon: '🦾', text: 'Support injured limb in position found. Do NOT try to straighten bone.' },
+      { step: 2, action: 'CHECK_CIRCULATION_PMS', title: 'Check Pulse & Sensation (PMS)', icon: '👉', text: 'Check pulse, finger movement, and feeling below the injury.' },
+      { step: 3, action: 'APPLY_PADDED_SPLINT', title: 'Place Rigid Padded Splint', icon: '🪵', text: 'Position splint extending past joints above and below the break.' },
+      { step: 4, action: 'SECURE_SPLINT_BANDAGES', title: 'Tie Splint Securely', icon: '🪢', text: 'Tie bandages above and below fracture site to immobilize bone.' },
+      { step: 5, action: 'RECHECK_PMS', title: 'Recheck Circulation & Elevate', icon: '✨', text: 'Verify pulse is intact and rest limb comfortably.' }
     ]
   }
 };

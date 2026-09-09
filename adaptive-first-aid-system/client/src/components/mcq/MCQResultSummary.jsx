@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, XCircle, Award, ArrowRight, RotateCcw, HelpCircle, Check, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Award, ArrowRight, RotateCcw, HelpCircle, Check, X, MessageSquare } from 'lucide-react';
+import FeedbackModal from '../feedback/FeedbackModal';
 
 const MCQResultSummary = ({ result, level, onRetry }) => {
   const navigate = useNavigate();
@@ -64,18 +65,44 @@ const MCQResultSummary = ({ result, level, onRetry }) => {
         </button>
 
         {passed ? (
-          <button
-            onClick={() => navigate('/levels')}
-            className="w-full sm:w-auto px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center"
-          >
-            Return to Levels Dashboard <ArrowRight className="w-5 h-5 ml-2" />
-          </button>
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto flex-wrap">
+            <button
+              onClick={() => setShowFeedbackModal(true)}
+              className="w-full sm:w-auto px-5 py-3.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl border border-blue-200 transition flex items-center justify-center"
+            >
+              <MessageSquare className="w-4 h-4 mr-1.5" /> Rate & Feedback on Level {level?.order}
+            </button>
+
+            {level?.order === 5 || levelCompleted ? (
+              <button
+                onClick={() => navigate('/certificate')}
+                className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black rounded-xl shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center"
+              >
+                <Award className="w-5 h-5 mr-1.5" /> View Certificates
+              </button>
+            ) : null}
+
+            <button
+              onClick={() => navigate('/levels')}
+              className="w-full sm:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center"
+            >
+              Return to Levels <ArrowRight className="w-4 h-4 ml-1.5" />
+            </button>
+          </div>
         ) : (
           <span className="text-xs text-red-600 font-semibold bg-red-50 border border-red-200 px-4 py-2 rounded-lg">
             Review detailed question explanations below and retry the quiz.
           </span>
         )}
       </div>
+
+      {/* End of Level Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        levelId={level?.order || 1}
+        levelTitle={level?.title}
+      />
 
       {/* Detailed Question Review */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-200 shadow-md space-y-6">

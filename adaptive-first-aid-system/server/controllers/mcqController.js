@@ -3,6 +3,8 @@ const MCQAttempt = require('../models/MCQAttempt');
 const PracticalAttempt = require('../models/PracticalAttempt');
 const Level = require('../models/Level');
 const Progress = require('../models/Progress');
+const User = require('../models/User');
+const Certificate = require('../models/Certificate');
 const { recommendQuestionSet } = require('../services/ruleEngine');
 
 // @desc    Get adaptively selected MCQ question set for level
@@ -186,6 +188,58 @@ exports.submitAnswers = async (req, res) => {
         }
         await nextProgress.save();
         nextLevelUnlocked = true;
+      }
+
+      // Auto-issue & persist Certificate for this level in MongoDB
+      try {
+        const userObj = await User.findById(userId).select('name email');
+        const latestPractical = await PracticalAttempt.findOne({ user: userId, level: levelId, passed: true }).sort({ createdAt: -1 });
+        const practicalScore = latestPractical ? latestPractical.compositeScore : 85;
+        const verificationCode = `CERT-FA-LVL${level.order}-${userId.toString().substring(18).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+
+        await Certificate.findOneAndUpdate(
+          { user: userId, levelId: String(level.order) },
+          {
+            user: userId,
+            userName: userObj ? userObj.name : 'Learner',
+            userEmail: userObj ? userObj.email : '',
+            levelId: String(level.order),
+            levelTitle: level.title,
+            order: level.order,
+            verificationCode,
+            practicalScore,
+            mcqScore: score,
+            issuer: 'Adaptive First-Aid Certification Board',
+            completedAt: new Date()
+          },
+          { upsert: true, new: true }
+        );
+
+        // Check if all levels completed -> Issue Master Certificate
+        const totalLevels = await Level.countDocuments({});
+        const completedCount = await Progress.countDocuments({ user: userId, levelCompleted: true });
+        if (completedCount >= totalLevels && totalLevels > 0) {
+          const masterCode = `CERT-FA-MASTER-${userId.toString().substring(18).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+          await Certificate.findOneAndUpdate(
+            { user: userId, levelId: 'master' },
+            {
+              user: userId,
+              userName: userObj ? userObj.name : 'Learner',
+              userEmail: userObj ? userObj.email : '',
+              levelId: 'master',
+              levelTitle: 'Master Certificate of First-Aid Proficiency & Emergency Response',
+              order: 99,
+              verificationCode: masterCode,
+              practicalScore,
+              mcqScore: score,
+              issuer: 'Adaptive First-Aid Certification Board & Emergency Medical Council',
+              completedAt: new Date()
+            },
+            { upsert: true, new: true }
+          );
+        }
+      } catch (certErr) {
+        console.error('Error auto-issuing certificate on level completion:', certErr.message);
       }
     }
 
