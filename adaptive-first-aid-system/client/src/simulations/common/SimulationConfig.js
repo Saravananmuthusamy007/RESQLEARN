@@ -13,7 +13,7 @@ export const PRACTICAL_THRESHOLD = 75; // Default pass threshold 75%
 export const LEVEL_SIMULATION_CONFIGS = {
   1: {
     levelId: 1,
-    title: 'Level 1 – CPR / Basic Life Support',
+    title: 'Level 1 – CPR & Response Check',
     procedureName: 'Cardiopulmonary Resuscitation (CPR)',
     totalSteps: 7,
     expectedSequence: [
@@ -33,7 +33,7 @@ export const LEVEL_SIMULATION_CONFIGS = {
   },
   2: {
     levelId: 2,
-    title: 'Level 2 – Bleeding Control',
+    title: 'Level 2 – Wound Care & Bleeding Control',
     procedureName: 'Severe Bleeding & Hemorrhage Control',
     totalSteps: 7,
     expectedSequence: [
@@ -52,7 +52,7 @@ export const LEVEL_SIMULATION_CONFIGS = {
   },
   3: {
     levelId: 3,
-    title: 'Level 3 – Burn First Aid',
+    title: 'Level 3 – Burns Management',
     procedureName: 'Thermal Burn Response & Cooling',
     totalSteps: 7,
     expectedSequence: [
@@ -72,25 +72,7 @@ export const LEVEL_SIMULATION_CONFIGS = {
   },
   4: {
     levelId: 4,
-    title: 'Level 4 – Fracture / Limb Injury',
-    procedureName: 'Limb Fracture & Splint Immobilization',
-    totalSteps: 7,
-    expectedSequence: [
-      'IDENTIFY_FRACTURE',
-      'IMMOBILIZE_LIMB',
-      'SELECT_SPLINT',
-      'POSITION_SPLINT',
-      'SECURE_BANDAGES',
-      'CHECK_CIRCULATION',
-      'COMPLETE'
-    ],
-    targetZones: {
-      limb: { x: 0.55, y: 0.55, width: 140, height: 60, label: 'Injured Arm/Leg Target Area' }
-    }
-  },
-  5: {
-    levelId: 5,
-    title: 'Level 5 – Choking Emergency',
+    title: 'Level 4 – Choking Response',
     procedureName: 'Airway Obstruction & Heimlich Maneuver',
     totalSteps: 6,
     expectedSequence: [
@@ -107,5 +89,23 @@ export const LEVEL_SIMULATION_CONFIGS = {
     },
     requiredBackBlows: 5,
     requiredAbdominalThrusts: 5
+  },
+  5: {
+    levelId: 5,
+    title: 'Level 5 – Fracture & Sprain Support',
+    procedureName: 'Limb Fracture & Splint Immobilization',
+    totalSteps: 7,
+    expectedSequence: [
+      'IDENTIFY_FRACTURE',
+      'IMMOBILIZE_LIMB',
+      'SELECT_SPLINT',
+      'POSITION_SPLINT',
+      'SECURE_BANDAGES',
+      'CHECK_CIRCULATION',
+      'COMPLETE'
+    ],
+    targetZones: {
+      limb: { x: 0.55, y: 0.55, width: 140, height: 60, label: 'Injured Arm/Leg Target Area' }
+    }
   }
 };

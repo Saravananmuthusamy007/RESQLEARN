@@ -1,11 +1,29 @@
+const mongoose = require('mongoose');
 const Question = require('../models/Question');
 const MCQAttempt = require('../models/MCQAttempt');
 const PracticalAttempt = require('../models/PracticalAttempt');
 const Level = require('../models/Level');
 const Progress = require('../models/Progress');
+const User = require('../models/User');
+const Certificate = require('../models/Certificate');
+const DynamicQuiz = require('../models/DynamicQuiz');
+const { generateDynamicQuiz } = require('../services/dynamicQuizGenerator');
 const { recommendQuestionSet } = require('../services/ruleEngine');
 
-// @desc    Get adaptively selected MCQ question set for level
+// Helper to resolve level document from ObjectId or numeric order
+async function resolveLevel(levelId) {
+  if (levelId && mongoose.Types.ObjectId.isValid(levelId)) {
+    const doc = await Level.findById(levelId);
+    if (doc) return doc;
+  }
+  const orderNum = Number(levelId);
+  if (!isNaN(orderNum)) {
+    return await Level.findOne({ order: orderNum });
+  }
+  return null;
+}
+
+// @desc    Get adaptively selected MCQ question set for level with threshold enforcement
 // @route   GET /api/mcq/:levelId/next-set
 // @access  Private (Learner & Admin)
 exports.getNextSet = async (req, res) => {
@@ -13,84 +31,102 @@ exports.getNextSet = async (req, res) => {
     const { levelId } = req.params;
     const userId = req.user.id;
 
-    const level = await Level.findById(levelId);
+    const level = await resolveLevel(levelId);
     if (!level) {
       return res.status(404).json({ message: 'Level not found' });
     }
 
-    // Verify learner has completed practical attempt
-    const latestPractical = await PracticalAttempt.findOne({ user: userId, level: levelId }).sort({ createdAt: -1 });
-    const previousMcqAttempts = await MCQAttempt.find({ user: userId, level: levelId }).sort({ attemptNumber: 1 });
+    const levelDocId = level._id;
 
-    // Run Rule Engine recommendation
-    const recommendation = recommendQuestionSet(latestPractical, previousMcqAttempts, level);
-    const { difficultyMix, focusTags, reason } = recommendation;
+    // Threshold Verification: Ensure learner has completed and passed practical simulation
+    const latestPractical = await PracticalAttempt.findOne({ user: userId, level: levelDocId }).sort({ createdAt: -1 });
 
-    // Target set size = 5 questions
-    const setSize = 5;
-    const countEasy = Math.max(1, Math.round(setSize * difficultyMix.easy));
-    const countMedium = Math.max(1, Math.round(setSize * difficultyMix.medium));
-    const countHard = setSize - countEasy - countMedium > 0 ? setSize - countEasy - countMedium : 1;
+    const practicalThreshold = Number(level.practicalThreshold) || 75;
 
-    // Fetch pool of questions for level
-    let allQuestions = await Question.find({ level: levelId });
-
-    if (allQuestions.length === 0) {
-      return res.status(404).json({ message: 'No MCQ questions found for this level.' });
-    }
-
-    // Helper to score question relevance based on focusTags match
-    const getRelevanceScore = (q) => {
-      if (!focusTags || focusTags.length === 0) return 0;
-      let score = 0;
-      if (q.tags && Array.isArray(q.tags)) {
-        q.tags.forEach(t => {
-          if (focusTags.includes(t)) score += 1;
+    if (req.user.role !== 'admin') {
+      if (!latestPractical) {
+        return res.status(403).json({
+          message: 'Practical simulation must be completed before accessing the adaptive MCQ assessment.',
+          practicalPassed: false,
+          requiredThreshold: practicalThreshold,
+          currentScore: 0,
+          remediation: 'Complete the hands-on practical simulation for this level to demonstrate clinical competency before unlocking the quiz.'
         });
       }
-      return score;
-    };
 
-    // Sort questions by relevance score descending
-    const poolEasy = allQuestions.filter(q => q.difficulty === 'easy').sort((a, b) => getRelevanceScore(b) - getRelevanceScore(a));
-    const poolMedium = allQuestions.filter(q => q.difficulty === 'medium').sort((a, b) => getRelevanceScore(b) - getRelevanceScore(a));
-    const poolHard = allQuestions.filter(q => q.difficulty === 'hard').sort((a, b) => getRelevanceScore(b) - getRelevanceScore(a));
-
-    const selectedQuestions = [
-      ...poolEasy.slice(0, countEasy),
-      ...poolMedium.slice(0, countMedium),
-      ...poolHard.slice(0, countHard)
-    ];
-
-    // Fill remaining if needed
-    if (selectedQuestions.length < setSize) {
-      const selectedIds = new Set(selectedQuestions.map(q => q._id.toString()));
-      for (const q of allQuestions) {
-        if (!selectedIds.has(q._id.toString())) {
-          selectedQuestions.push(q);
-          selectedIds.add(q._id.toString());
-          if (selectedQuestions.length === setSize) break;
-        }
+      const hasPassedPractical = latestPractical.passed || (latestPractical.compositeScore >= practicalThreshold);
+      if (!hasPassedPractical) {
+        return res.status(403).json({
+          message: `Practical simulation threshold not met. You achieved ${latestPractical.compositeScore}%, but at least ${practicalThreshold}% is required to unlock the MCQ assessment.`,
+          practicalPassed: false,
+          requiredThreshold: practicalThreshold,
+          currentScore: latestPractical.compositeScore,
+          remediation: latestPractical.geminiEvaluation?.remediation || 'Review procedural clinical guidelines and retry the simulation to achieve passing criteria.',
+          weakAreas: latestPractical.weakAreas || []
+        });
       }
+    }
+
+    const previousMcqAttempts = await MCQAttempt.find({ user: userId, level: levelDocId }).sort({ attemptNumber: 1 });
+    const attemptNumber = previousMcqAttempts.length + 1;
+
+    // Check for existing active dynamic quiz session
+    let dynamicQuiz = await DynamicQuiz.findOne({
+      user: userId,
+      level: levelDocId,
+      isCompleted: false
+    }).sort({ createdAt: -1 });
+
+    // If no active dynamic quiz, generate a new Gemini-driven quiz on the fly
+    if (!dynamicQuiz) {
+      const simulationScore = latestPractical ? latestPractical.compositeScore : 80;
+      const weakTags = latestPractical?.weakAreas || latestPractical?.geminiEvaluation?.recommendedFocusTags || [];
+
+      const quizResult = await generateDynamicQuiz({
+        levelOrder: level.order,
+        simulationScore,
+        weakTags
+      });
+
+      dynamicQuiz = new DynamicQuiz({
+        user: userId,
+        level: levelDocId,
+        levelOrder: level.order,
+        simulationScore,
+        simulationAttempt: latestPractical ? latestPractical._id : null,
+        weakTags,
+        difficultyTier: quizResult.difficultyTier,
+        questions: quizResult.questions
+      });
+
+      await dynamicQuiz.save();
     }
 
     // Sanitize output (exclude correctOptionIndex)
-    const sanitizedQuestions = selectedQuestions.map(q => ({
-      _id: q._id,
-      questionText: q.questionText,
+    const sanitizedQuestions = dynamicQuiz.questions.map(q => ({
+      _id: q.id,
+      id: q.id,
+      question: q.question,
+      questionText: q.question,
       options: q.options,
       difficulty: q.difficulty,
-      tags: q.tags
+      clinicalRationale: q.clinicalRationale,
+      tags: [q.difficulty]
     }));
 
-    const attemptNumber = previousMcqAttempts.length + 1;
+    const difficultyTier = dynamicQuiz.difficultyTier || 'intermediate';
+    let dynamicReason = `Based on your simulation score of ${dynamicQuiz.simulationScore}%, 5 dynamic ${difficultyTier} MCQs were generated to test clinical competency.`;
 
     res.json({
       questions: sanitizedQuestions,
-      reason,
+      reason: dynamicReason,
       attemptNumber,
-      mcqThreshold: level.mcqThreshold,
-      totalQuestions: sanitizedQuestions.length
+      mcqThreshold: level.mcqThreshold || 75,
+      totalQuestions: sanitizedQuestions.length,
+      adaptiveCategory: difficultyTier,
+      difficultyTier,
+      simulationScore: dynamicQuiz.simulationScore,
+      practicalScore: latestPractical ? latestPractical.compositeScore : 80
     });
   } catch (error) {
     console.error('Error generating adaptive MCQ question set:', error.message);
@@ -111,39 +147,110 @@ exports.submitAnswers = async (req, res) => {
       return res.status(400).json({ message: 'Answers payload is required.' });
     }
 
-    const level = await Level.findById(levelId);
+    const level = await resolveLevel(levelId);
     if (!level) {
       return res.status(404).json({ message: 'Level not found' });
     }
 
+    const levelDocId = level._id;
+
+    // Check for active dynamic quiz for this user and level
+    let dynamicQuiz = await DynamicQuiz.findOne({
+      user: userId,
+      level: levelDocId,
+      isCompleted: false
+    }).sort({ createdAt: -1 });
+
+    if (!dynamicQuiz) {
+      dynamicQuiz = await DynamicQuiz.findOne({
+        user: userId,
+        level: levelDocId
+      }).sort({ createdAt: -1 });
+    }
+
     let correctCount = 0;
     const gradedQuestions = [];
+    let detailedResults = [];
 
-    for (const ans of answers) {
-      const qDoc = await Question.findById(ans.questionId);
-      if (!qDoc) continue;
-
-      const isCorrect = qDoc.correctOptionIndex === Number(ans.selectedOption);
-      if (isCorrect) correctCount++;
-
-      gradedQuestions.push({
-        question: qDoc._id,
-        selectedOption: Number(ans.selectedOption),
-        correct: isCorrect,
-        tagsFromQuestion: qDoc.tags || []
+    if (dynamicQuiz && dynamicQuiz.questions && dynamicQuiz.questions.length > 0) {
+      const answerMap = new Map();
+      answers.forEach(a => {
+        const qId = a.questionId !== undefined ? Number(a.questionId) : Number(a.id);
+        answerMap.set(qId, Number(a.selectedOption));
       });
+
+      dynamicQuiz.questions.forEach((q, idx) => {
+        const qId = q.id || idx + 1;
+        const selectedOption = answerMap.has(qId) ? answerMap.get(qId) : 0;
+        const isCorrect = selectedOption === q.correctOptionIndex;
+        if (isCorrect) correctCount++;
+
+        gradedQuestions.push({
+          dynamicQuestion: {
+            id: q.id,
+            question: q.question,
+            options: q.options,
+            difficulty: q.difficulty,
+            clinicalRationale: q.clinicalRationale,
+            correctOptionIndex: q.correctOptionIndex
+          },
+          selectedOption,
+          correct: isCorrect,
+          tagsFromQuestion: [q.difficulty]
+        });
+
+        detailedResults.push({
+          questionId: q.id,
+          id: q.id,
+          question: q.question,
+          questionText: q.question,
+          options: q.options,
+          selectedOption,
+          correctOptionIndex: q.correctOptionIndex,
+          correct: isCorrect,
+          explanation: q.clinicalRationale
+        });
+      });
+
+      dynamicQuiz.isCompleted = true;
+      await dynamicQuiz.save();
+    } else {
+      for (const ans of answers) {
+        const qDoc = await Question.findById(ans.questionId);
+        if (!qDoc) continue;
+
+        const isCorrect = qDoc.correctOptionIndex === Number(ans.selectedOption);
+        if (isCorrect) correctCount++;
+
+        gradedQuestions.push({
+          question: qDoc._id,
+          selectedOption: Number(ans.selectedOption),
+          correct: isCorrect,
+          tagsFromQuestion: qDoc.tags || []
+        });
+
+        detailedResults.push({
+          questionId: qDoc._id,
+          questionText: qDoc.questionText,
+          options: qDoc.options,
+          selectedOption: Number(ans.selectedOption),
+          correctOptionIndex: qDoc.correctOptionIndex,
+          correct: isCorrect,
+          explanation: qDoc.explanation || 'Review emergency first-aid guidelines.'
+        });
+      }
     }
 
     const totalQuestions = gradedQuestions.length;
     const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
-    const passed = score >= level.mcqThreshold;
+    const passed = score >= (level.mcqThreshold || 75);
 
-    const previousAttemptsCount = await MCQAttempt.countDocuments({ user: userId, level: levelId });
+    const previousAttemptsCount = await MCQAttempt.countDocuments({ user: userId, level: levelDocId });
     const attemptNumber = previousAttemptsCount + 1;
 
     const attempt = new MCQAttempt({
       user: userId,
-      level: levelId,
+      level: levelDocId,
       questions: gradedQuestions,
       score,
       attemptNumber,
@@ -153,9 +260,9 @@ exports.submitAnswers = async (req, res) => {
     await attempt.save();
 
     // Update Progress model
-    let progress = await Progress.findOne({ user: userId, level: levelId });
+    let progress = await Progress.findOne({ user: userId, level: levelDocId });
     if (!progress) {
-      progress = new Progress({ user: userId, level: levelId, unlocked: true });
+      progress = new Progress({ user: userId, level: levelDocId, unlocked: true });
     }
 
     if (passed) {
@@ -187,31 +294,67 @@ exports.submitAnswers = async (req, res) => {
         await nextProgress.save();
         nextLevelUnlocked = true;
       }
+
+      // Auto-issue & persist Certificate for this level in MongoDB
+      try {
+        const userObj = await User.findById(userId).select('name email');
+        const latestPractical = await PracticalAttempt.findOne({ user: userId, level: levelDocId, passed: true }).sort({ createdAt: -1 });
+        const practicalScore = latestPractical ? latestPractical.compositeScore : 85;
+        const verificationCode = `CERT-FA-LVL${level.order}-${userId.toString().substring(18).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+
+        await Certificate.findOneAndUpdate(
+          { user: userId, levelId: String(level.order) },
+          {
+            user: userId,
+            userName: userObj ? userObj.name : 'Learner',
+            userEmail: userObj ? userObj.email : '',
+            levelId: String(level.order),
+            levelTitle: level.title,
+            order: level.order,
+            verificationCode,
+            practicalScore,
+            mcqScore: score,
+            issuer: 'Adaptive First-Aid Certification Board',
+            completedAt: new Date()
+          },
+          { upsert: true, new: true }
+        );
+
+        // Check if all levels completed -> Issue Master Certificate
+        const totalLevels = await Level.countDocuments({});
+        const completedCount = await Progress.countDocuments({ user: userId, levelCompleted: true });
+        if (completedCount >= totalLevels && totalLevels > 0) {
+          const masterCode = `CERT-FA-MASTER-${userId.toString().substring(18).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+          await Certificate.findOneAndUpdate(
+            { user: userId, levelId: 'master' },
+            {
+              user: userId,
+              userName: userObj ? userObj.name : 'Learner',
+              userEmail: userObj ? userObj.email : '',
+              levelId: 'master',
+              levelTitle: 'Master Certificate of First-Aid Proficiency & Emergency Response',
+              order: 99,
+              verificationCode: masterCode,
+              practicalScore,
+              mcqScore: score,
+              issuer: 'Adaptive First-Aid Certification Board & Emergency Medical Council',
+              completedAt: new Date()
+            },
+            { upsert: true, new: true }
+          );
+        }
+      } catch (certErr) {
+        console.error('Error auto-issuing certificate on level completion:', certErr.message);
+      }
     }
 
     await progress.save();
-
-    // Build question-level breakdown for summary
-    const detailedResults = await Promise.all(
-      gradedQuestions.map(async (gq) => {
-        const qObj = await Question.findById(gq.question);
-        return {
-          questionId: gq.question,
-          questionText: qObj.questionText,
-          options: qObj.options,
-          selectedOption: gq.selectedOption,
-          correctOptionIndex: qObj.correctOptionIndex,
-          correct: gq.correct,
-          explanation: qObj.explanation || 'Review emergency first-aid guidelines.'
-        };
-      })
-    );
 
     res.status(201).json({
       attempt,
       score,
       passed,
-      mcqThreshold: level.mcqThreshold,
+      mcqThreshold: level.mcqThreshold || 75,
       correctCount,
       totalQuestions,
       results: detailedResults,

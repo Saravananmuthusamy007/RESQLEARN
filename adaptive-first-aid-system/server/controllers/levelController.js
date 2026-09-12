@@ -46,7 +46,7 @@ exports.getLevels = async (req, res) => {
         order: level.order,
         videoUrl: level.videoUrl,
         instructions: level.instructions,
-        practicalThreshold: level.practicalThreshold,
+        practicalThreshold: level.practicalThreshold || 75,
         mcqThreshold: level.mcqThreshold,
         progress: prog ? {
           unlocked: prog.unlocked,
@@ -139,7 +139,7 @@ exports.createLevel = async (req, res) => {
       order,
       videoUrl,
       instructions: instructions || [],
-      practicalThreshold: practicalThreshold || 80,
+      practicalThreshold: practicalThreshold !== undefined ? Number(practicalThreshold) : 75,
       mcqThreshold: mcqThreshold || 70
     });
 
@@ -175,8 +175,8 @@ exports.updateLevel = async (req, res) => {
     if (description !== undefined) level.description = description;
     if (videoUrl !== undefined) level.videoUrl = videoUrl;
     if (instructions !== undefined) level.instructions = instructions;
-    if (practicalThreshold !== undefined) level.practicalThreshold = practicalThreshold;
-    if (mcqThreshold !== undefined) level.mcqThreshold = mcqThreshold;
+    if (practicalThreshold !== undefined) level.practicalThreshold = Number(practicalThreshold);
+    if (mcqThreshold !== undefined) level.mcqThreshold = Number(mcqThreshold);
 
     await level.save();
     res.json(level);

@@ -30,3 +30,5 @@ exports.adminOnly = (req, res, next) => {
     res.status(403).json({ message: 'Access denied: Admin role required' });
   }
 };
+
+exports.isAdmin = exports.adminOnly;

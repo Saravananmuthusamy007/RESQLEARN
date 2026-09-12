@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { LogOut, BookOpen, LayoutDashboard, Shield, Award } from 'lucide-react';
+import { LogOut, BookOpen, LayoutDashboard, Shield, Award, MessageSquare, PlayCircle } from 'lucide-react';
 
 const AVATAR_MAP = {
   'avatar-1': '👨‍⚕️',
@@ -112,6 +112,29 @@ const Navbar = () => {
                       }`}
                     >
                       Questions
+                    </Link>
+
+                    <Link
+                      to="/admin/feedback"
+                      className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition ${
+                        isActive('/admin/feedback')
+                          ? 'bg-indigo-50 text-indigo-700 font-bold'
+                          : 'text-gray-600 hover:text-indigo-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <MessageSquare className="w-4 h-4 mr-1.5" /> Feedback
+                    </Link>
+
+                    <Link
+                      to="/admin/sandbox"
+                      className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition ${
+                        isActive('/admin/sandbox')
+                          ? 'bg-amber-50 text-amber-800 font-bold'
+                          : 'text-gray-600 hover:text-amber-700 hover:bg-amber-50/50'
+                      }`}
+                      title="Preview Simulation Mode / Test Sandbox"
+                    >
+                      <PlayCircle className="w-4 h-4 mr-1.5 text-amber-600" /> Test Sandbox
                     </Link>
                   </>
                 )}

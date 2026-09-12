@@ -21,7 +21,7 @@ const levelSchema = new mongoose.Schema({
   }],
   practicalThreshold: {
     type: Number,
-    default: 80
+    default: 75
   },
   mcqThreshold: {
     type: Number,

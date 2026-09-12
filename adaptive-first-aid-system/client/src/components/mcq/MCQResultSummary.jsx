@@ -1,13 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, XCircle, Award, ArrowRight, RotateCcw, HelpCircle, Check, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Award, ArrowRight, RotateCcw, HelpCircle, Check, X, MessageSquare } from 'lucide-react';
+import FeedbackModal from '../feedback/FeedbackModal';
 
 const MCQResultSummary = ({ result, level, onRetry }) => {
   const navigate = useNavigate();
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
-  if (!result) return null;
+  if (!result) {
+    return (
+      <div className="bg-white rounded-2xl p-8 border border-gray-200 text-center shadow-md my-6">
+        <p className="text-gray-600 font-semibold mb-4">No result data available.</p>
+        <button
+          onClick={onRetry}
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm"
+        >
+          Retry Assessment
+        </button>
+      </div>
+    );
+  }
 
-  const { score, passed, mcqThreshold, correctCount, totalQuestions, results, levelCompleted, nextLevelUnlocked } = result;
+  // Defensive extraction of properties with reliable fallbacks
+  const score = result?.score ?? result?.quizScore ?? 0;
+  const mcqThreshold = result?.mcqThreshold ?? level?.mcqThreshold ?? 75;
+  const passed = result?.passed ?? (score >= mcqThreshold);
+  const correctCount = result?.correctCount ?? 0;
+  const resultsList = Array.isArray(result?.results)
+    ? result.results
+    : (Array.isArray(result?.evaluations) ? result.evaluations : []);
+  const totalQuestions = result?.totalQuestions ?? (resultsList.length || 5);
+  const levelCompleted = Boolean(result?.levelCompleted);
+  const nextLevelUnlocked = Boolean(result?.nextLevelUnlocked);
 
   return (
     <div className="space-y-8 mt-6">
@@ -30,7 +54,7 @@ const MCQResultSummary = ({ result, level, onRetry }) => {
             </div>
             <div>
               <span className="text-xs uppercase font-bold tracking-wider text-white/80">
-                Adaptive MCQ Assessment Result
+                Dynamic Gemini MCQ Assessment Result
               </span>
               <h2 className="text-3xl font-extrabold">
                 {passed ? 'MCQ Assessment Passed!' : 'Pass Threshold Not Met'}
@@ -64,12 +88,30 @@ const MCQResultSummary = ({ result, level, onRetry }) => {
         </button>
 
         {passed ? (
-          <button
-            onClick={() => navigate('/levels')}
-            className="w-full sm:w-auto px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center"
-          >
-            Return to Levels Dashboard <ArrowRight className="w-5 h-5 ml-2" />
-          </button>
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto flex-wrap">
+            <button
+              onClick={() => setShowFeedbackModal(true)}
+              className="w-full sm:w-auto px-5 py-3.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl border border-blue-200 transition flex items-center justify-center"
+            >
+              <MessageSquare className="w-4 h-4 mr-1.5" /> Rate & Feedback on Level {level?.order}
+            </button>
+
+            {level?.order === 5 || levelCompleted ? (
+              <button
+                onClick={() => navigate('/certificate')}
+                className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black rounded-xl shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center"
+              >
+                <Award className="w-5 h-5 mr-1.5" /> View Certificates
+              </button>
+            ) : null}
+
+            <button
+              onClick={() => navigate('/levels')}
+              className="w-full sm:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center"
+            >
+              Return to Levels <ArrowRight className="w-4 h-4 ml-1.5" />
+            </button>
+          </div>
         ) : (
           <span className="text-xs text-red-600 font-semibold bg-red-50 border border-red-200 px-4 py-2 rounded-lg">
             Review detailed question explanations below and retry the quiz.
@@ -77,71 +119,90 @@ const MCQResultSummary = ({ result, level, onRetry }) => {
         )}
       </div>
 
+      {/* End of Level Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        levelId={level?.order || 1}
+        levelTitle={level?.title}
+      />
+
       {/* Detailed Question Review */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-200 shadow-md space-y-6">
         <h3 className="text-lg font-bold text-gray-900 border-b pb-3 flex items-center">
-          <HelpCircle className="w-5 h-5 text-blue-600 mr-2" /> Detailed Answer Explanations
+          <HelpCircle className="w-5 h-5 text-blue-600 mr-2" /> Detailed Answer Explanations & Clinical Rationale
         </h3>
 
-        <div className="space-y-6">
-          {results && results.map((item, idx) => (
-            <div
-              key={item.questionId || idx}
-              className={`p-5 rounded-2xl border-2 transition ${
-                item.correct ? 'bg-green-50/50 border-green-200' : 'bg-red-50/50 border-red-200'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <h4 className="font-bold text-gray-900 text-base">
-                  {idx + 1}. {item.questionText}
-                </h4>
-                {item.correct ? (
-                  <span className="inline-flex items-center text-xs bg-green-600 text-white font-bold px-2.5 py-1 rounded-full flex-shrink-0">
-                    <Check className="w-3.5 h-3.5 mr-1" /> Correct (+1)
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center text-xs bg-red-600 text-white font-bold px-2.5 py-1 rounded-full flex-shrink-0">
-                    <X className="w-3.5 h-3.5 mr-1" /> Incorrect (0)
-                  </span>
-                )}
-              </div>
+        {resultsList.length === 0 ? (
+          <p className="text-gray-500 text-sm italic">Assessment answers recorded successfully.</p>
+        ) : (
+          <div className="space-y-6">
+            {resultsList.map((item, idx) => {
+              const options = Array.isArray(item?.options) ? item.options : [];
+              const isCorrect = Boolean(item?.correct);
+              const qTitle = item?.questionText || item?.question || `Question ${idx + 1}`;
+              const rationale = item?.clinicalRationale || item?.explanation || 'Follow clinical resuscitation guidelines.';
 
-              {/* Options Review List */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-3">
-                {item.options.map((optText, optIdx) => {
-                  const isSelected = item.selectedOption === optIdx;
-                  const isCorrectOpt = item.correctOptionIndex === optIdx;
-
-                  let optStyle = 'bg-gray-100 text-gray-700 border-gray-200';
-                  if (isCorrectOpt) {
-                    optStyle = 'bg-green-600 text-white border-green-600 font-bold';
-                  } else if (isSelected && !item.correct) {
-                    optStyle = 'bg-red-600 text-white border-red-600 font-bold';
-                  }
-
-                  return (
-                    <div
-                      key={optIdx}
-                      className={`p-3 rounded-xl border text-xs flex items-center justify-between ${optStyle}`}
-                    >
-                      <span>
-                        <strong>{String.fromCharCode(65 + optIdx)}.</strong> {optText}
+              return (
+                <div
+                  key={item?.questionId || item?.id || idx}
+                  className={`p-5 rounded-2xl border-2 transition ${
+                    isCorrect ? 'bg-green-50/50 border-green-200' : 'bg-red-50/50 border-red-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <h4 className="font-bold text-gray-900 text-base">
+                      {idx + 1}. {qTitle}
+                    </h4>
+                    {isCorrect ? (
+                      <span className="inline-flex items-center text-xs bg-green-600 text-white font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+                        <Check className="w-3.5 h-3.5 mr-1" /> Correct (+1)
                       </span>
-                      {isCorrectOpt && <Check className="w-4 h-4 ml-1 flex-shrink-0" />}
-                      {isSelected && !isCorrectOpt && <X className="w-4 h-4 ml-1 flex-shrink-0" />}
-                    </div>
-                  );
-                })}
-              </div>
+                    ) : (
+                      <span className="inline-flex items-center text-xs bg-red-600 text-white font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+                        <X className="w-3.5 h-3.5 mr-1" /> Incorrect (0)
+                      </span>
+                    )}
+                  </div>
 
-              {/* Explanation Note */}
-              <div className="mt-3 p-3 bg-white/80 rounded-xl border border-gray-200 text-xs text-gray-700">
-                <span className="font-bold text-gray-900">Explanation: </span>
-                {item.explanation}
-              </div>
-            </div>
-          ))}
-        </div>
+                  {/* Options Review List */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-3">
+                    {options.map((optText, optIdx) => {
+                      const isSelected = item?.selectedOption === optIdx;
+                      const isCorrectOpt = item?.correctOptionIndex === optIdx;
+
+                      let optStyle = 'bg-gray-100 text-gray-700 border-gray-200';
+                      if (isCorrectOpt) {
+                        optStyle = 'bg-green-600 text-white border-green-600 font-bold';
+                      } else if (isSelected && !isCorrect) {
+                        optStyle = 'bg-red-600 text-white border-red-600 font-bold';
+                      }
+
+                      return (
+                        <div
+                          key={optIdx}
+                          className={`p-3 rounded-xl border text-xs flex items-center justify-between ${optStyle}`}
+                        >
+                          <span>
+                            <strong>{String.fromCharCode(65 + optIdx)}.</strong> {optText}
+                          </span>
+                          {isCorrectOpt && <Check className="w-4 h-4 ml-1 flex-shrink-0" />}
+                          {isSelected && !isCorrectOpt && <X className="w-4 h-4 ml-1 flex-shrink-0" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Explanation Note */}
+                  <div className="mt-3 p-3 bg-white/80 rounded-xl border border-gray-200 text-xs text-gray-700">
+                    <span className="font-bold text-gray-900">Clinical Rationale: </span>
+                    {rationale}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

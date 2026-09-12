@@ -16,7 +16,7 @@ const ManageLevels = () => {
     order: 1,
     videoUrl: '',
     instructionsText: '',
-    practicalThreshold: 80,
+    practicalThreshold: 75,
     mcqThreshold: 70
   });
 
@@ -46,7 +46,7 @@ const ManageLevels = () => {
         order: level.order || 1,
         videoUrl: level.videoUrl || '',
         instructionsText: level.instructions ? level.instructions.join('\n') : '',
-        practicalThreshold: level.practicalThreshold || 80,
+        practicalThreshold: level.practicalThreshold || 75,
         mcqThreshold: level.mcqThreshold || 70
       });
     } else {
@@ -57,7 +57,7 @@ const ManageLevels = () => {
         order: levels.length + 1,
         videoUrl: '',
         instructionsText: '',
-        practicalThreshold: 80,
+        practicalThreshold: 75,
         mcqThreshold: 70
       });
     }

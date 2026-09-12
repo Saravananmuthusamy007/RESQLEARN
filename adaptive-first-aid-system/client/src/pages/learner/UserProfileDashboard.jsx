@@ -20,8 +20,10 @@ import {
   HeartHandshake,
   Sparkles,
   FileText,
-  Clock
+  Clock,
+  MessageSquare
 } from 'lucide-react';
+import FeedbackModal from '../../components/feedback/FeedbackModal';
 
 const AVATAR_OPTIONS = [
   { id: 'avatar-1', label: 'Doctor', icon: '👨‍⚕️' },
@@ -49,6 +51,7 @@ const UserProfileDashboard = () => {
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const [feedbackLevel, setFeedbackLevel] = useState(null);
 
   useEffect(() => {
     fetchProfileAndDashboard();
@@ -363,7 +366,7 @@ const UserProfileDashboard = () => {
                 </div>
 
                 {/* Navigation Actions */}
-                <div>
+                <div className="space-y-2">
                   {isUnlocked ? (
                     <Link
                       to={`/levels/${level._id}`}
@@ -377,6 +380,15 @@ const UserProfileDashboard = () => {
                       className="w-full py-2.5 bg-gray-100 text-gray-400 font-semibold text-xs rounded-xl cursor-not-allowed flex items-center justify-center"
                     >
                       <Lock className="w-3.5 h-3.5 mr-1" /> Unlock Previous Level First
+                    </button>
+                  )}
+
+                  {isCompleted && (
+                    <button
+                      onClick={() => setFeedbackLevel({ order: level.order, title: level.title })}
+                      className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition flex items-center justify-center gap-1.5"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" /> Rate & Feedback on Level {level.order}
                     </button>
                   )}
                 </div>
@@ -499,6 +511,14 @@ const UserProfileDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* End of Level Feedback Modal */}
+      <FeedbackModal
+        isOpen={!!feedbackLevel}
+        onClose={() => setFeedbackLevel(null)}
+        levelId={feedbackLevel?.order || 1}
+        levelTitle={feedbackLevel?.title}
+      />
     </div>
   );
 };

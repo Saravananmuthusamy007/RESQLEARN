@@ -15,13 +15,17 @@ import AdminProfileDashboard from './pages/admin/AdminProfileDashboard';
 import ManageLevels from './pages/admin/ManageLevels';
 import Analytics from './pages/admin/Analytics';
 import ManageQuestions from './pages/admin/ManageQuestions';
+import FeedbackInbox from './pages/admin/FeedbackInbox';
+import AdminSimulationSandbox from './pages/admin/AdminSimulationSandbox';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import { ToastProvider } from './components/common/Toast';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+      <ToastProvider>
+        <Router>
+          <div className="min-h-screen bg-gray-50 flex flex-col">
           <Navbar />
           <main className="flex-grow">
             <Routes>
@@ -48,12 +52,15 @@ function App() {
                 <Route path="/admin/analytics" element={<Analytics />} />
                 <Route path="/admin/questions" element={<ManageQuestions />} />
                 <Route path="/admin/levels" element={<ManageLevels />} />
+                <Route path="/admin/feedback" element={<FeedbackInbox />} />
+                <Route path="/admin/sandbox" element={<AdminSimulationSandbox />} />
               </Route>
             </Routes>
           </main>
         </div>
       </Router>
-    </AuthProvider>
+    </ToastProvider>
+  </AuthProvider>
   );
 }
 
