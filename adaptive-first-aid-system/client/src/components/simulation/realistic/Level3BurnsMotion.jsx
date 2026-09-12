@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Droplets, Flame, ShieldAlert, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import AnatomyHandBurn from '../../simulations/AnatomyHandBurn';
 
 const Level3BurnsMotion = ({ currentStep, onAction, isFinished }) => {
   const [hazardRemoved, setHazardRemoved] = useState(false);
@@ -19,9 +20,13 @@ const Level3BurnsMotion = ({ currentStep, onAction, isFinished }) => {
           const next = prev + 1;
           if (next >= targetMinutes && currentStep === 'COOL_BURN_AREA') {
             onAction({
+              step: 'cool_running_water',
+              target: 'running_water',
               action: 'COOL_BURN_AREA',
               targetAccuracy: 95,
               isCorrect: true,
+              durationMinutes: next,
+              timerAdherence: true,
               feedback: `Thermal cooling optimal: ${next} minutes under gentle running cool water.`
             });
           }
@@ -35,6 +40,8 @@ const Level3BurnsMotion = ({ currentStep, onAction, isFinished }) => {
   const handleHazardRemove = () => {
     setHazardRemoved(true);
     onAction({
+      step: 'remove_hazard',
+      target: 'heat_source',
       action: 'REMOVE_HAZARD',
       targetAccuracy: 100,
       isCorrect: true,
@@ -45,6 +52,8 @@ const Level3BurnsMotion = ({ currentStep, onAction, isFinished }) => {
   const handleSelectWaterCooling = () => {
     if (!hazardRemoved) {
       onAction({
+        step: 'cool_running_water',
+        target: 'running_water',
         action: 'SELECT_COOLING_METHOD',
         targetAccuracy: 50,
         isCorrect: false,
@@ -54,6 +63,8 @@ const Level3BurnsMotion = ({ currentStep, onAction, isFinished }) => {
     }
     setIsWaterRunning(true);
     onAction({
+      step: 'cool_running_water',
+      target: 'running_water',
       action: 'SELECT_COOLING_METHOD',
       targetAccuracy: 95,
       isCorrect: true,
@@ -64,9 +75,12 @@ const Level3BurnsMotion = ({ currentStep, onAction, isFinished }) => {
   const handleApplyIceOrButter = (item) => {
     setForbiddenMistake(`Critical Mistake: Applying ${item} damages tissue and causes hypothermia/infection!`);
     onAction({
+      step: 'contraindicated_remedy',
+      target: item,
       action: 'SELECT_COOLING_METHOD',
       targetAccuracy: 20,
       isCorrect: false,
+      flag: 'contraindicated_home_remedy',
       feedback: `Contraindicated! Never apply ${item} to a burn. Use cool running water only.`
     });
     setTimeout(() => setForbiddenMistake(null), 4000);
@@ -75,6 +89,8 @@ const Level3BurnsMotion = ({ currentStep, onAction, isFinished }) => {
   const handleApplyDressing = () => {
     if (coolingWaterSlider < 10) {
       onAction({
+        step: 'apply_sterile_dressing',
+        target: 'burn_surface',
         action: 'APPLY_STERILE_DRESSING',
         targetAccuracy: 55,
         isCorrect: false,
@@ -85,12 +101,17 @@ const Level3BurnsMotion = ({ currentStep, onAction, isFinished }) => {
     setIsWaterRunning(false);
     setDressingApplied(true);
     onAction({
+      step: 'apply_sterile_dressing',
+      target: 'burn_surface',
       action: 'APPLY_STERILE_DRESSING',
       targetAccuracy: 95,
       isCorrect: true,
+      nonAdherent: true,
       feedback: 'Non-adherent sterile dressing wrapped loosely over burn site without popping blisters.'
     });
     onAction({
+      step: 'burn_care_complete',
+      target: 'burn_surface',
       action: 'COMPLETE',
       targetAccuracy: 100,
       isCorrect: true,
@@ -100,59 +121,23 @@ const Level3BurnsMotion = ({ currentStep, onAction, isFinished }) => {
 
   return (
     <div className="w-full max-w-2xl flex flex-col items-center space-y-6">
-      {/* Thermal Burn Forearm & Running Water Canvas */}
-      <div className="relative w-full max-w-md h-64 bg-slate-900 rounded-3xl border-2 border-slate-700/80 flex items-center justify-center overflow-hidden shadow-inner p-4">
-        {/* Forearm Surface Graphic */}
-        <div className="relative w-80 h-32 bg-amber-100 rounded-full border-2 border-amber-200 shadow-xl flex items-center justify-center overflow-hidden">
-          {/* Burn Site Erythema & Blister Overlay */}
-          <div className="relative flex items-center justify-center">
-            {/* Redness / Thermal Heat Area (cools from red to pink) */}
-            <motion.div
-              animate={{
-                backgroundColor: coolingWaterSlider >= 10 ? '#f43f5e33' : '#e11d4899',
-                scale: [1, 1.05, 1]
-              }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="w-24 h-14 rounded-full blur-[3px]"
-            />
-
-            {/* Intact Fluid Blister Graphic */}
-            <div className="absolute w-6 h-4 bg-amber-300/60 rounded-full border border-amber-400/80 -top-1 left-4 backdrop-blur-sm" />
-            <div className="absolute w-4 h-3 bg-amber-300/50 rounded-full border border-amber-400/70 bottom-0 right-5" />
-
-            {/* Running Water Stream Animation */}
-            {isWaterRunning && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="absolute -top-16 inset-x-0 flex flex-col items-center pointer-events-none z-10"
-              >
-                {/* Water Tap Graphic */}
-                <div className="w-8 h-6 bg-slate-400 rounded-t-lg border border-slate-300 shadow" />
-                {/* Animated Falling Droplets */}
-                <motion.div
-                  animate={{ y: [0, 45], opacity: [0.9, 0.4] }}
-                  transition={{ duration: 0.35, repeat: Infinity, ease: 'linear' }}
-                  className="w-12 h-20 bg-gradient-to-b from-cyan-400/80 via-blue-400/60 to-cyan-300/30 rounded-full blur-[1px]"
-                />
-              </motion.div>
-            )}
-
-            {/* Non-adherent Sterile Wrap Dressing */}
-            {dressingApplied && (
-              <motion.div
-                initial={{ scale: 0.7, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="absolute w-36 h-28 bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 rounded-2xl border-2 border-dashed border-cyan-400 shadow-2xl z-20 flex items-center justify-center"
-              >
-                <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Non-Stick Sterile Wrap
-                </span>
-              </motion.div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Clinical 2D Anatomical Hand/Wrist Burn & Running Water Simulation */}
+      <AnatomyHandBurn
+        isWaterRunning={isWaterRunning}
+        coolingMinutes={coolingWaterSlider}
+        targetCoolingMinutes={20}
+        dressingApplied={dressingApplied}
+        onToggleWater={() => {
+          if (isWaterRunning) {
+            setIsWaterRunning(false);
+          } else {
+            handleSelectWaterCooling();
+          }
+        }}
+        onApplyDressing={handleApplyDressing}
+        onApplyIce={() => handleApplyIceOrButter('ice')}
+        disabled={isFinished}
+      />
 
       {/* Water Cooling Timer Slider (Target: 10 - 20 minutes) */}
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">

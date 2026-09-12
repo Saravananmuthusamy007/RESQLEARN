@@ -3,12 +3,15 @@ import { Tag, HelpCircle } from 'lucide-react';
 
 const QuestionCard = ({ question, questionIndex, totalQuestions, selectedOption, onSelectOption }) => {
   const getDifficultyBadge = (diff) => {
-    switch (diff) {
+    switch (diff?.toLowerCase()) {
       case 'easy':
+      case 'basic':
         return 'bg-emerald-100 text-emerald-800 border-emerald-300';
       case 'medium':
-        return 'bg-amber-100 text-amber-800 border-amber-300';
+      case 'intermediate':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'hard':
+      case 'advanced':
         return 'bg-purple-100 text-purple-800 border-purple-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-300';
@@ -44,7 +47,7 @@ const QuestionCard = ({ question, questionIndex, totalQuestions, selectedOption,
 
       {/* Question Prompt */}
       <h3 className="text-xl font-bold text-gray-900 leading-snug">
-        {question.questionText}
+        {question.questionText || question.question}
       </h3>
 
       {/* Options List */}

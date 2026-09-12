@@ -23,7 +23,7 @@ const levels = [
       "Deliver 2 rescue breaths after every 30 compressions if trained.",
       "Turn on AED, apply pads as instructed on pads, clear patient during rhythm analysis, and deliver shock if advised."
     ],
-    practicalThreshold: 80,
+    practicalThreshold: 75,
     mcqThreshold: 70
   },
   {
@@ -39,7 +39,7 @@ const levels = [
       "For severe arterial extremity bleeding, apply a commercial tourniquet 2-3 inches above the wound (not over a joint) and tighten until bleeding stops.",
       "Position patient lying flat with legs elevated 6-12 inches (if no spinal injury) to manage shock and keep patient warm."
     ],
-    practicalThreshold: 80,
+    practicalThreshold: 75,
     mcqThreshold: 70
   },
   {
@@ -54,7 +54,7 @@ const levels = [
       "Cover area loosely with clean, non-stick sterile gauze dressing.",
       "Seek emergency medical assistance immediately for third-degree burns, large area burns (>10% body surface), or facial/airway burns."
     ],
-    practicalThreshold: 80,
+    practicalThreshold: 75,
     mcqThreshold: 70
   },
   {
@@ -70,7 +70,7 @@ const levels = [
       "For conscious choking, deliver 5 sharp back slaps between shoulder blades alternating with 5 abdominal thrusts.",
       "If victim becomes unconscious, carefully lower to floor and initiate CPR starting with chest compressions."
     ],
-    practicalThreshold: 80,
+    practicalThreshold: 75,
     mcqThreshold: 70
   },
   {
@@ -85,7 +85,7 @@ const levels = [
       "Check circulation, sensation, and movement (CSM / PMS) before and after splint application.",
       "Keep patient calm and still while awaiting emergency medical personnel."
     ],
-    practicalThreshold: 80,
+    practicalThreshold: 75,
     mcqThreshold: 70
   }
 ];

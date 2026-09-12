@@ -7,7 +7,10 @@ const ScoreSummary = ({ latestResult, attemptsHistory, level, onRetry }) => {
 
   if (!latestResult) return null;
 
-  const { passed, compositeScore, practicalThreshold, feedback, attempt } = latestResult;
+  const { passed: rawPassed, compositeScore = 0, practicalThreshold: rawThreshold, feedback, attempt } = latestResult;
+  const PASS_THRESHOLD = Number(rawThreshold) || 75;
+  const practicalThreshold = PASS_THRESHOLD;
+  const passed = rawPassed !== undefined ? (Boolean(rawPassed) || compositeScore >= PASS_THRESHOLD) : (compositeScore >= PASS_THRESHOLD);
 
   return (
     <div className="space-y-6 mt-8">

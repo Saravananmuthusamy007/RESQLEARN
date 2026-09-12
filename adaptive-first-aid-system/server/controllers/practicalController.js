@@ -1,110 +1,145 @@
+const mongoose = require('mongoose');
 const PracticalAttempt = require('../models/PracticalAttempt');
 const Level = require('../models/Level');
 const Progress = require('../models/Progress');
+const { evaluatePracticalSimulation } = require('../services/geminiEvaluator');
 
-// @desc    Submit practical simulation attempt data
-// @route   POST /api/practical/:levelId/attempt
+// @desc    Submit practical simulation attempt data & evaluate with Gemini
+// @route   POST /api/practical/:levelId/attempt or POST /api/practical/attempt
 // @access  Private (Learner & Admin)
 exports.submitAttempt = async (req, res) => {
   try {
-    const { levelId } = req.params;
+    const rawLevelId = req.params.levelId || req.body.levelId;
     const userId = req.user.id;
+
     const {
-      actionCorrectness,
-      targetAccuracy,
+      actions = [],
+      metrics: inputMetrics,
+      actionCorrectness: rawActionCorr,
+      targetAccuracy: rawTargetAcc,
       sequenceCorrect,
       sequenceAccuracy: rawSeqAcc,
       responseTimeMs,
       mistakes = 0,
-      attempts = 1,
+      attempts: rawAttempts = 1,
       finalScore: inputFinalScore,
-      weakAreas = [],
-      actions = []
+      weakAreas = []
     } = req.body;
 
-    if (actionCorrectness === undefined || targetAccuracy === undefined) {
-      return res.status(400).json({ message: 'Missing required simulation attempt parameters.' });
+    // Resolve Level document either by MongoDB ObjectId or numeric order
+    let level = null;
+    if (rawLevelId && mongoose.Types.ObjectId.isValid(rawLevelId)) {
+      level = await Level.findById(rawLevelId);
+    }
+    if (!level && rawLevelId) {
+      const orderNum = Number(rawLevelId);
+      if (!isNaN(orderNum)) {
+        level = await Level.findOne({ order: orderNum });
+      }
     }
 
-    const level = await Level.findById(levelId);
     if (!level) {
-      return res.status(404).json({ message: 'Level not found' });
+      return res.status(404).json({ message: `Level not found for identifier: ${rawLevelId}` });
     }
+
+    const levelDocId = level._id;
 
     // Verify level is unlocked for user (or user is admin)
     if (req.user.role !== 'admin') {
-      const userProgress = await Progress.findOne({ user: userId, level: levelId });
+      const userProgress = await Progress.findOne({ user: userId, level: levelDocId });
       if (!userProgress || !userProgress.unlocked) {
         return res.status(403).json({ message: 'Level is locked. Complete previous level first.' });
       }
     }
 
-    const seqAcc = rawSeqAcc !== undefined ? Number(rawSeqAcc) : (sequenceCorrect ? 100 : 50);
-    const seqBool = sequenceCorrect !== undefined ? Boolean(sequenceCorrect) : (seqAcc >= 80);
+    // Prepare structured telemetry metrics
+    const resolvedMetrics = {
+      totalResponseTime: inputMetrics?.totalResponseTime !== undefined
+        ? Number(inputMetrics.totalResponseTime)
+        : (responseTimeMs ? Number((responseTimeMs / 1000).toFixed(1)) : 20),
+      attempts: inputMetrics?.attempts !== undefined
+        ? Number(inputMetrics.attempts)
+        : Number(rawAttempts || 1),
+      sequenceErrors: inputMetrics?.sequenceErrors !== undefined
+        ? Number(inputMetrics.sequenceErrors)
+        : (sequenceCorrect === false ? 1 : 0),
+      incorrectTargets: inputMetrics?.incorrectTargets !== undefined
+        ? Number(inputMetrics.incorrectTargets)
+        : Number(mistakes || 0)
+    };
 
-    // Calculate response time score (100 if < 30s, decreasing to 0 at 120s)
-    const respTimeSec = Number(responseTimeMs || 0) / 1000;
-    const timeScore = Math.max(0, Math.min(100, 100 - (respTimeSec - 30) * (100 / 90)));
+    // Evaluate telemetry using Google Gemini API (@google/genai) with clinical fallback
+    const evaluation = await evaluatePracticalSimulation({
+      levelId: level.order,
+      actions,
+      metrics: resolvedMetrics,
+      level
+    });
 
-    // Calculate attempt score
-    const attemptScore = Math.max(20, 100 - (Number(attempts) - 1) * 20);
-
-    // Weighted Score: action (30%), target (25%), sequence (20%), time (15%), attempt (10%)
-    const calculatedScore = Math.round(
-      (Number(actionCorrectness) * 0.30) +
-      (Number(targetAccuracy) * 0.25) +
-      (seqAcc * 0.20) +
-      (timeScore * 0.15) +
-      (attemptScore * 0.10)
-    );
-
-    const compositeScore = inputFinalScore !== undefined ? Math.round(Number(inputFinalScore)) : calculatedScore;
-    const practicalThreshold = level.practicalThreshold || 75;
+    const PASS_THRESHOLD = 75;
+    const practicalThreshold = Number(level.practicalThreshold) || PASS_THRESHOLD;
+    const compositeScore = inputFinalScore !== undefined
+      ? Math.round(Number(inputFinalScore))
+      : evaluation.compositeScore;
     const passed = compositeScore >= practicalThreshold;
 
     // Increment attempt count in DB
-    const previousAttemptsCount = await PracticalAttempt.countDocuments({ user: userId, level: levelId });
+    const previousAttemptsCount = await PracticalAttempt.countDocuments({ user: userId, level: levelDocId });
     const attemptNumber = previousAttemptsCount + 1;
 
-    // Identify weak areas if not passed from client
-    const derivedWeakAreas = [...weakAreas];
-    if (Number(targetAccuracy) < 60 && !derivedWeakAreas.includes('Target identification')) {
-      derivedWeakAreas.push('Target identification');
-    }
-    if (seqAcc < 60 && !derivedWeakAreas.includes('Action sequence')) {
-      derivedWeakAreas.push('Action sequence');
-    }
-    if (Number(actionCorrectness) < 70 && !derivedWeakAreas.includes('Procedure accuracy')) {
-      derivedWeakAreas.push('Procedure accuracy');
-    }
+    // Merge identified weak areas
+    const combinedWeakAreas = [
+      ...new Set([
+        ...(Array.isArray(weakAreas) ? weakAreas : []),
+        ...(Array.isArray(evaluation.weakAreas) ? evaluation.weakAreas : [])
+      ])
+    ];
 
-    // Create attempt record
+    // Create attempt record with full telemetry & Gemini evaluation details
     const attempt = new PracticalAttempt({
       user: userId,
-      level: levelId,
-      actionCorrectness: Number(actionCorrectness),
-      targetAccuracy: Number(targetAccuracy),
-      sequenceCorrect: seqBool,
-      sequenceAccuracy: seqAcc,
-      responseTimeMs: Number(responseTimeMs || 0),
+      level: levelDocId,
+      actionCorrectness: evaluation.actionAccuracyScore ?? (rawActionCorr !== undefined ? Number(rawActionCorr) : 80),
+      targetAccuracy: evaluation.targetAccuracyScore ?? (rawTargetAcc !== undefined ? Number(rawTargetAcc) : 80),
+      sequenceCorrect: evaluation.sequenceScore >= 75,
+      sequenceAccuracy: evaluation.sequenceScore,
+      responseTimeMs: Math.round(resolvedMetrics.totalResponseTime * 1000),
       attemptNumber,
-      mistakes: Number(mistakes),
-      attempts: Number(attempts),
+      mistakes: resolvedMetrics.incorrectTargets,
+      attempts: resolvedMetrics.attempts,
       compositeScore,
       finalScore: compositeScore,
       passed,
-      weakAreas: derivedWeakAreas,
-      actions
+      weakAreas: combinedWeakAreas,
+      actions: actions.map(a => ({
+        step: a.step || a.action,
+        target: a.target || 'target_zone',
+        action: a.action || a.step,
+        timestamp: a.timestamp || Date.now(),
+        correct: a.correct !== false,
+        targetAccuracy: a.targetAccuracy || 100,
+        feedback: a.feedback || '',
+        details: a.details || null
+      })),
+      metrics: resolvedMetrics,
+      geminiEvaluation: {
+        clinicalCritique: evaluation.clinicalCritique,
+        remediation: evaluation.remediation,
+        recommendedDifficulty: evaluation.recommendedMCQDifficulty,
+        difficultyMix: evaluation.difficultyMix,
+        recommendedFocusTags: evaluation.recommendedFocusTags,
+        aiEvaluated: evaluation.aiEvaluated
+      }
     });
 
     await attempt.save();
 
     // Update Progress model
-    let progress = await Progress.findOne({ user: userId, level: levelId });
+    let progress = await Progress.findOne({ user: userId, level: levelDocId });
     if (!progress) {
       progress = new Progress({
         user: userId,
-        level: levelId,
+        level: levelDocId,
         unlocked: true
       });
     }
@@ -114,33 +149,24 @@ exports.submitAttempt = async (req, res) => {
     }
     await progress.save();
 
-    // Feedback messages
-    const feedback = [];
-    if (!seqBool) {
-      feedback.push('Sequence Error: Follow the correct step order for emergency response.');
-    }
-    if (Number(actionCorrectness) < 80) {
-      feedback.push(`Action Precision Low (${actionCorrectness}%): Focus on proper technique execution.`);
-    }
-    if (Number(targetAccuracy) < 80) {
-      feedback.push(`Target Positioning Inaccurate (${targetAccuracy}%): Place hands/equipment on exact target zones.`);
-    }
-    if (feedback.length === 0 && passed) {
-      feedback.push('Outstanding Performance! Excellent technique, accuracy, and procedure timing.');
-    }
-
     res.status(201).json({
       attempt,
       passed,
       compositeScore,
       finalScore: compositeScore,
       practicalThreshold,
-      feedback,
-      weakAreas: derivedWeakAreas,
+      clinicalCritique: evaluation.clinicalCritique,
+      remediation: evaluation.remediation,
+      feedback: [evaluation.clinicalCritique],
+      weakAreas: combinedWeakAreas,
+      recommendedMCQDifficulty: evaluation.recommendedMCQDifficulty,
+      difficultyMix: evaluation.difficultyMix,
+      recommendedFocusTags: evaluation.recommendedFocusTags,
+      aiEvaluated: evaluation.aiEvaluated,
       practicalPassed: progress.practicalPassed
     });
   } catch (error) {
-    console.error('Error submitting practical attempt:', error.message);
+    console.error('Error submitting practical attempt with Gemini evaluation:', error.message);
     res.status(500).json({ message: 'Server error processing simulation attempt' });
   }
 };
@@ -153,7 +179,16 @@ exports.getAttemptHistory = async (req, res) => {
     const { levelId } = req.params;
     const userId = req.user.id;
 
-    const attempts = await PracticalAttempt.find({ user: userId, level: levelId }).sort({ attemptNumber: 1 });
+    let targetLevelId = levelId;
+    if (!mongoose.Types.ObjectId.isValid(levelId)) {
+      const orderNum = Number(levelId);
+      if (!isNaN(orderNum)) {
+        const found = await Level.findOne({ order: orderNum });
+        if (found) targetLevelId = found._id;
+      }
+    }
+
+    const attempts = await PracticalAttempt.find({ user: userId, level: targetLevelId }).sort({ attemptNumber: 1 });
     res.json(attempts);
   } catch (error) {
     console.error('Error fetching practical attempts history:', error.message);

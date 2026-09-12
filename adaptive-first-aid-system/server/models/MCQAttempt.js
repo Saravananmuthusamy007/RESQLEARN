@@ -15,7 +15,15 @@ const mcqAttemptSchema = new mongoose.Schema({
     question: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Question',
-      required: true
+      required: false
+    },
+    dynamicQuestion: {
+      id: Number,
+      question: String,
+      options: [String],
+      difficulty: String,
+      clinicalRationale: String,
+      correctOptionIndex: Number
     },
     selectedOption: {
       type: Number,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bone, Shield, CheckCircle2, Activity, ArrowRight, HeartPulse } from 'lucide-react';
+import AnatomyLegFracture from '../../simulations/AnatomyLegFracture';
 
 const Level5FractureMotion = ({ currentStep, onAction, isFinished }) => {
   const [splintAligned, setSplintAligned] = useState(false);
@@ -13,9 +14,12 @@ const Level5FractureMotion = ({ currentStep, onAction, isFinished }) => {
     setSplintAligned(true);
     setSplintOffset(0);
     onAction({
+      step: 'position_splint',
+      target: 'joints_above_and_below',
       action: 'POSITION_SPLINT',
       targetAccuracy: 95,
       isCorrect: true,
+      aligned: true,
       feedback: 'Padded rigid splint aligned spanning both the joint above and joint below fracture.'
     });
   };
@@ -23,6 +27,8 @@ const Level5FractureMotion = ({ currentStep, onAction, isFinished }) => {
   const handleWrapProximal = () => {
     if (!splintAligned) {
       onAction({
+        step: 'secure_proximal_binding',
+        target: 'proximal_joint_elbow',
         action: 'SECURE_BANDAGES',
         targetAccuracy: 50,
         isCorrect: false,
@@ -32,9 +38,12 @@ const Level5FractureMotion = ({ currentStep, onAction, isFinished }) => {
     }
     setProximalWrapSecured(true);
     onAction({
+      step: 'secure_proximal_binding',
+      target: 'proximal_joint_elbow',
       action: 'SECURE_BANDAGES',
       targetAccuracy: 95,
       isCorrect: true,
+      nonConstrictive: true,
       feedback: 'Proximal tie secured above fracture site (elbow joint immobilized).'
     });
   };
@@ -42,6 +51,8 @@ const Level5FractureMotion = ({ currentStep, onAction, isFinished }) => {
   const handleWrapDistal = () => {
     if (!proximalWrapSecured) {
       onAction({
+        step: 'secure_distal_binding',
+        target: 'distal_joint_wrist',
         action: 'SECURE_BANDAGES',
         targetAccuracy: 60,
         isCorrect: false,
@@ -51,9 +62,12 @@ const Level5FractureMotion = ({ currentStep, onAction, isFinished }) => {
     }
     setDistalWrapSecured(true);
     onAction({
+      step: 'secure_distal_binding',
+      target: 'distal_joint_wrist',
       action: 'SECURE_BANDAGES',
       targetAccuracy: 95,
       isCorrect: true,
+      nonConstrictive: true,
       feedback: 'Distal tie secured below fracture site (wrist joint immobilized).'
     });
   };
@@ -61,6 +75,8 @@ const Level5FractureMotion = ({ currentStep, onAction, isFinished }) => {
   const handleCheckCirculation = () => {
     if (!distalWrapSecured) {
       onAction({
+        step: 'check_circulation',
+        target: 'radial_pulse_csm',
         action: 'CHECK_CIRCULATION',
         targetAccuracy: 50,
         isCorrect: false,
@@ -70,12 +86,17 @@ const Level5FractureMotion = ({ currentStep, onAction, isFinished }) => {
     }
     setCirculationChecked(true);
     onAction({
+      step: 'check_circulation',
+      target: 'radial_pulse_csm',
       action: 'CHECK_CIRCULATION',
       targetAccuracy: 100,
       isCorrect: true,
+      capillaryRefill: '<2s',
       feedback: 'Circulation, sensation, and motor function (CSM) checked: Strong radial pulse, warm capillary refill (<2s).'
     });
     onAction({
+      step: 'fracture_protocol_complete',
+      target: 'splinted_limb',
       action: 'COMPLETE',
       targetAccuracy: 100,
       isCorrect: true,
@@ -85,64 +106,18 @@ const Level5FractureMotion = ({ currentStep, onAction, isFinished }) => {
 
   return (
     <div className="w-full max-w-2xl flex flex-col items-center space-y-6">
-      {/* Limb & Splint Immobilization Canvas */}
-      <div className="relative w-full max-w-md h-64 bg-slate-900 rounded-3xl border-2 border-slate-700/80 flex items-center justify-center overflow-hidden shadow-inner p-4">
-        {/* Forearm Surface Graphic */}
-        <div className="relative w-80 h-28 bg-amber-200/90 rounded-2xl border-2 border-amber-300/60 shadow-xl flex items-center justify-center overflow-hidden">
-          {/* Internal Bone Structure & Fracture Line Indicator */}
-          <div className="absolute inset-x-4 h-6 bg-slate-100 rounded-full flex items-center justify-center opacity-60">
-            <span className="text-[9px] font-mono text-slate-700 font-bold tracking-widest uppercase">
-              Radius & Ulna
-            </span>
-          </div>
-
-          {/* Fracture Midshaft Deformity */}
-          <div className="relative z-10 flex items-center justify-center">
-            <motion.div
-              animate={{ rotate: [-2, 2, -2] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="w-8 h-8 rounded-full bg-rose-600/40 border border-rose-500/80 flex items-center justify-center"
-            >
-              <Bone className="w-4 h-4 text-rose-300 rotate-45" />
-            </motion.div>
-          </div>
-
-          {/* Rigid Splint Board Placement */}
-          {splintAligned && (
-            <motion.div
-              initial={{ y: -30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="absolute inset-x-2 bottom-1 h-8 bg-amber-700 rounded-lg border-2 border-amber-500 shadow-md flex items-center justify-center z-20"
-            >
-              <span className="text-[9px] font-black uppercase text-amber-200 tracking-wider">
-                Padded Rigid Splint Board
-              </span>
-            </motion.div>
-          )}
-
-          {/* Proximal Joint Immobilization Tie (Above Fracture) */}
-          {proximalWrapSecured && (
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="absolute left-6 inset-y-0 w-8 bg-cyan-700/90 border-x-2 border-cyan-400 z-30 flex items-center justify-center"
-            >
-              <span className="text-[8px] font-black text-white -rotate-90">WRAP 1</span>
-            </motion.div>
-          )}
-
-          {/* Distal Joint Immobilization Tie (Below Fracture) */}
-          {distalWrapSecured && (
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="absolute right-6 inset-y-0 w-8 bg-cyan-700/90 border-x-2 border-cyan-400 z-30 flex items-center justify-center"
-            >
-              <span className="text-[8px] font-black text-white -rotate-90">WRAP 2</span>
-            </motion.div>
-          )}
-        </div>
-      </div>
+      {/* Clinical 2D Anatomical Lower Leg & Rigid Splint Simulation */}
+      <AnatomyLegFracture
+        splintAligned={splintAligned}
+        proximalWrapSecured={proximalWrapSecured}
+        distalWrapSecured={distalWrapSecured}
+        circulationChecked={circulationChecked}
+        onAlignSplint={handleAlignSplint}
+        onSecureProximal={handleSecureProximal}
+        onSecureDistal={handleSecureDistal}
+        onCheckCirculation={handleCheckCirculation}
+        disabled={isFinished}
+      />
 
       {/* Circulation & CSM Check Indicator */}
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">

@@ -28,6 +28,7 @@ const RealisticSimulationWrapper = ({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [actionsHistory, setActionsHistory] = useState([]);
   const [mistakesCount, setMistakesCount] = useState(0);
+  const [mistakeTags, setMistakeTags] = useState([]);
   const [attemptsCount, setAttemptsCount] = useState(1);
   const [targetAccuracyScores, setTargetAccuracyScores] = useState([]);
   const [outOfSequenceCount, setOutOfSequenceCount] = useState(0);
@@ -53,6 +54,7 @@ const RealisticSimulationWrapper = ({
     setCurrentStepIndex(0);
     setActionsHistory([]);
     setMistakesCount(0);
+    setMistakeTags([]);
     setTargetAccuracyScores([]);
     setOutOfSequenceCount(0);
     setElapsedMs(0);
@@ -75,11 +77,14 @@ const RealisticSimulationWrapper = ({
   };
 
   const handleStepAction = ({
+    step,
+    target,
     action,
     targetAccuracy = 100,
     isCorrect = true,
     feedback = '',
-    autoAdvance = true
+    autoAdvance = true,
+    ...extraFields
   }) => {
     if (isFinished) return;
 
@@ -87,38 +92,65 @@ const RealisticSimulationWrapper = ({
     const isSequenceMatch = action === expectedStep;
 
     let newOutOfSeq = outOfSequenceCount;
-    if (!isSequenceMatch && action !== 'RETRY') {
+    let isActionMistake = false;
+    let currentStepTag = null;
+
+    if (!isSequenceMatch && action !== 'RETRY' && action !== 'COMPLETE') {
       newOutOfSeq++;
       setOutOfSequenceCount(newOutOfSeq);
+      isActionMistake = true;
+      currentStepTag = 'sequence-order';
+    }
+
+    if (!isCorrect || targetAccuracy < 65) {
+      isActionMistake = true;
+      currentStepTag = currentStepTag || (step || target || 'procedural-accuracy');
     }
 
     let newMistakes = mistakesCount;
-    if (!isCorrect || targetAccuracy < 60) {
+    let updatedMistakeTags = [...mistakeTags];
+    if (isActionMistake) {
       newMistakes++;
       setMistakesCount(newMistakes);
+      if (currentStepTag) {
+        updatedMistakeTags = [...new Set([...updatedMistakeTags, currentStepTag])];
+        setMistakeTags(updatedMistakeTags);
+      }
       if (eventBridge.onMistake) {
-        eventBridge.onMistake({ action, mistakesCount: newMistakes });
+        eventBridge.onMistake({
+          action,
+          expectedStep,
+          tag: currentStepTag,
+          mistakesCount: newMistakes
+        });
       }
     }
 
     const updatedAccuracies = [...targetAccuracyScores, targetAccuracy];
     setTargetAccuracyScores(updatedAccuracies);
 
+    const actionFeedback = !isSequenceMatch && action !== 'RETRY' && action !== 'COMPLETE'
+      ? `Sequence error! Expected: "${expectedStep.replace(/_/g, ' ')}".`
+      : feedback;
+
     const actionRecord = {
-      action,
+      step: step || action?.toLowerCase() || 'action',
+      target: target || 'standard_target',
+      action: action || step,
       expectedStep,
-      timestamp: Date.now(),
+      timestamp: Date.now() - startTimeRef.current,
       correct: isCorrect && isSequenceMatch,
       targetAccuracy,
-      feedback
+      feedback: actionFeedback,
+      ...extraFields
     };
 
     const newHistory = [...actionsHistory, actionRecord];
     setActionsHistory(newHistory);
 
-    setLastFeedback({ message: feedback, isCorrect: isCorrect && isSequenceMatch });
+    setLastFeedback({ message: actionFeedback, isCorrect: isCorrect && isSequenceMatch });
     if (eventBridge.onFeedback) {
-      eventBridge.onFeedback({ message: feedback, isCorrect: isCorrect && isSequenceMatch });
+      eventBridge.onFeedback({ message: actionFeedback, isCorrect: isCorrect && isSequenceMatch });
     }
 
     let nextIndex = currentStepIndex;
@@ -128,6 +160,7 @@ const RealisticSimulationWrapper = ({
     }
 
     const nextStepName = config.expectedSequence[nextIndex] || 'COMPLETE';
+    const estScore = Math.max(0, 100 - (newMistakes * 10));
 
     if (eventBridge.onAction) {
       eventBridge.onAction({
@@ -136,6 +169,8 @@ const RealisticSimulationWrapper = ({
         stepIndex: nextIndex,
         totalSteps: config.expectedSequence.length - 1,
         mistakesCount: newMistakes,
+        mistakeTags: updatedMistakeTags,
+        estimatedScore: estScore,
         elapsedMs: Date.now() - startTimeRef.current
       });
     }
@@ -154,12 +189,13 @@ const RealisticSimulationWrapper = ({
         history: newHistory,
         accuracies: updatedAccuracies,
         mistakes: newMistakes,
-        outOfSeq: newOutOfSeq
+        outOfSeq: newOutOfSeq,
+        tags: updatedMistakeTags
       });
     }
   };
 
-  const finishSimulation = ({ history, accuracies, mistakes, outOfSeq }) => {
+  const finishSimulation = ({ history, accuracies, mistakes, outOfSeq, tags = [] }) => {
     if (timerRef.current) clearInterval(timerRef.current);
     setIsFinished(true);
 
@@ -193,24 +229,47 @@ const RealisticSimulationWrapper = ({
 
     const passed = calculatedScore >= PRACTICAL_THRESHOLD;
 
+    const allMistakeTags = [...new Set([...tags, ...(mistakeTags || [])])];
     const weakAreas = [];
     if (targetAccuracy < 65) weakAreas.push('Target positioning accuracy');
     if (sequenceAccuracy < 70) weakAreas.push('Procedure step order');
     if (actionCorrectness < 75) weakAreas.push('Action precision & clinical technique');
     if (timeScore < 60) weakAreas.push('Emergency response time');
+    allMistakeTags.forEach(t => weakAreas.push(t));
+
+    const totalTimeSec = Number((totalTimeMs / 1000).toFixed(1));
+    const metrics = {
+      totalResponseTime: totalTimeSec,
+      attempts: attemptsCount,
+      sequenceErrors: outOfSeq,
+      incorrectTargets: mistakes
+    };
+
+    const structuredActions = history.map(h => ({
+      step: h.step || h.action,
+      target: h.target || 'target_zone',
+      timestamp: h.timestamp,
+      correct: h.correct,
+      targetAccuracy: h.targetAccuracy,
+      feedback: h.feedback
+    }));
 
     const completionPayload = {
       levelId: levelNum,
-      actions: history,
+      actions: structuredActions,
+      metrics,
       actionCorrectness,
       targetAccuracy,
       sequenceAccuracy,
       responseTimeMs: totalTimeMs,
       mistakes,
+      mistakeTags: allMistakeTags,
+      sequenceErrors: outOfSeq,
       attempts: attemptsCount,
       finalScore: calculatedScore,
+      estScore: calculatedScore,
       passed,
-      weakAreas,
+      weakAreas: [...new Set(weakAreas)],
       practicalThreshold: PRACTICAL_THRESHOLD,
       isSandbox
     };

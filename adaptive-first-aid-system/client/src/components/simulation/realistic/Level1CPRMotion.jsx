@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Activity, PhoneCall, Hand, Eye, ShieldCheck } from 'lucide-react';
+import AnatomyCPR from '../../simulations/AnatomyCPR';
 
 const Level1CPRMotion = ({ currentStep, onAction, isFinished }) => {
   const [compressions, setCompressions] = useState(0);
@@ -54,13 +55,21 @@ const Level1CPRMotion = ({ currentStep, onAction, isFinished }) => {
 
     if (newCount >= targetCompressions) {
       onAction({
+        step: 'chest_compressions',
+        target: 'sternum_center',
         action: 'CHEST_COMPRESSIONS',
         targetAccuracy: accuracy,
         isCorrect: true,
         feedback: `30 high-quality compressions completed at 5–6 cm depth!`,
+        depthCm: simulatedDepth,
+        bpm: 110,
+        cycleCount: newCount,
+        rhythmPacing: timingMsg,
         autoAdvance: true
       });
       onAction({
+        step: 'cpr_protocol_complete',
+        target: 'sternum_center',
         action: 'COMPLETE',
         targetAccuracy: 100,
         isCorrect: true,
@@ -69,10 +78,16 @@ const Level1CPRMotion = ({ currentStep, onAction, isFinished }) => {
       });
     } else {
       onAction({
+        step: 'chest_compressions',
+        target: 'sternum_center',
         action: 'CHEST_COMPRESSIONS',
         targetAccuracy: accuracy,
         isCorrect: true,
         feedback: `Compression ${newCount}/${targetCompressions} • ${simulatedDepth}cm • ${timingMsg}`,
+        depthCm: simulatedDepth,
+        bpm: 110,
+        cycleCount: newCount,
+        rhythmPacing: timingMsg,
         autoAdvance: false
       });
     }
@@ -80,73 +95,25 @@ const Level1CPRMotion = ({ currentStep, onAction, isFinished }) => {
 
   return (
     <div className="w-full max-w-2xl flex flex-col items-center space-y-6">
-      {/* Patient Torso & Anatomical Target Area */}
-      <div className="relative w-full max-w-md h-64 bg-slate-900 rounded-3xl border-2 border-slate-700/80 flex flex-col items-center justify-center overflow-hidden shadow-inner">
-        {/* Ambient Medical Pulse Background Glow */}
-        <motion.div
-          animate={{ scale: [1, 1.25, 1], opacity: [0.15, 0.35, 0.15] }}
-          transition={{ duration: 0.55, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute w-44 h-44 rounded-full bg-rose-500/20 blur-xl pointer-events-none"
-        />
-
-        {/* Anatomical Torso Outline */}
-        <div className="relative w-64 h-52 bg-slate-800/90 rounded-t-[50px] rounded-b-2xl border border-slate-600/60 p-4 flex flex-col items-center shadow-lg">
-          {/* Patient Neck & Head Silhouette */}
-          <div className="w-16 h-8 bg-slate-700/80 rounded-t-full -mt-7 border-t border-x border-slate-600/60" />
-
-          {/* Ribcage Outline Visuals */}
-          <div className="w-full flex justify-between px-6 mt-2 opacity-30">
-            <div className="space-y-2">
-              <div className="w-12 h-1 bg-slate-400 rounded-full rotate-6" />
-              <div className="w-14 h-1 bg-slate-400 rounded-full rotate-6" />
-              <div className="w-10 h-1 bg-slate-400 rounded-full rotate-6" />
-            </div>
-            <div className="space-y-2">
-              <div className="w-12 h-1 bg-slate-400 rounded-full -rotate-6" />
-              <div className="w-14 h-1 bg-slate-400 rounded-full -rotate-6" />
-              <div className="w-10 h-1 bg-slate-400 rounded-full -rotate-6" />
-            </div>
-          </div>
-
-          {/* Sternum Center Compression Hotspot */}
-          <div className="mt-3 relative flex flex-col items-center">
-            {/* 100-120 BPM Metronome Concentric Rhythm Ring */}
-            <motion.div
-              animate={{ scale: [1, 1.45, 1], opacity: [0.8, 0, 0.8] }}
-              transition={{ duration: 0.54, repeat: Infinity, ease: 'easeOut' }}
-              className="absolute -inset-4 rounded-full border-2 border-rose-500/60 pointer-events-none"
-            />
-
-            <motion.button
-              animate={isCompressing ? { scale: 0.88, y: 8 } : { scale: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-              onClick={handleCompression}
-              className={`w-24 h-24 rounded-full flex flex-col items-center justify-center p-2 shadow-2xl transition-all border-4 relative z-10 ${
-                currentStep === 'CHEST_COMPRESSIONS'
-                  ? 'bg-gradient-to-b from-rose-600 to-red-700 border-rose-400 text-white cursor-pointer hover:shadow-rose-600/50'
-                  : 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
-              }`}
-            >
-              <Heart className={`w-6 h-6 ${isCompressing ? 'text-yellow-300 fill-yellow-300' : 'text-white'}`} />
-              <span className="text-[10px] font-black uppercase tracking-wider mt-1">
-                {currentStep === 'CHEST_COMPRESSIONS' ? 'PUSH 5 CM' : 'STERNUM'}
-              </span>
-            </motion.button>
-          </div>
-
-          {/* Real-time Depth Feedback Indicator */}
-          {depthFeedback && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="mt-2 bg-slate-950/90 border border-slate-700/80 px-3 py-1 rounded-full text-[11px] font-mono text-emerald-400 font-bold flex items-center gap-1.5 shadow"
-            >
-              <Activity className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Depth: {depthFeedback}</span>
-            </motion.div>
-          )}
-        </div>
-      </div>
+      {/* Clinical 2D Anatomical Upper Torso & Interactive Hotspots */}
+      <AnatomyCPR
+        currentStep={currentStep}
+        onCompression={handleCompression}
+        onClavicleTap={(shoulder) => onAction({
+          step: 'check_response',
+          target: shoulder || 'shoulders',
+          action: 'CHECK_RESPONSIVENESS',
+          targetAccuracy: 95,
+          isCorrect: true,
+          feedback: 'Tapped shoulders: Patient unresponsive to verbal and physical stimuli.'
+        })}
+        isCompressing={isCompressing}
+        compressions={compressions}
+        targetCompressions={targetCompressions}
+        depthFeedback={depthFeedback}
+        rhythmTiming={rhythmTiming}
+        disabled={isFinished}
+      />
 
       {/* Rhythm Metronome & Compressions Progress Bar */}
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
@@ -170,6 +137,8 @@ const Level1CPRMotion = ({ currentStep, onAction, isFinished }) => {
       <div className="w-full grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
         <button
           onClick={() => onAction({
+            step: 'check_scene',
+            target: 'environment',
             action: 'OBSERVE_VICTIM',
             targetAccuracy: 100,
             isCorrect: true,
@@ -187,6 +156,8 @@ const Level1CPRMotion = ({ currentStep, onAction, isFinished }) => {
 
         <button
           onClick={() => onAction({
+            step: 'check_response',
+            target: 'shoulders',
             action: 'CHECK_RESPONSIVENESS',
             targetAccuracy: 95,
             isCorrect: true,
@@ -204,6 +175,8 @@ const Level1CPRMotion = ({ currentStep, onAction, isFinished }) => {
 
         <button
           onClick={() => onAction({
+            step: 'check_breathing',
+            target: 'chest_rise',
             action: 'CHECK_BREATHING',
             targetAccuracy: 95,
             isCorrect: true,
@@ -221,6 +194,8 @@ const Level1CPRMotion = ({ currentStep, onAction, isFinished }) => {
 
         <button
           onClick={() => onAction({
+            step: 'call_emergency',
+            target: 'phone_aed',
             action: 'CALL_EMERGENCY',
             targetAccuracy: 100,
             isCorrect: true,
@@ -238,6 +213,8 @@ const Level1CPRMotion = ({ currentStep, onAction, isFinished }) => {
 
         <button
           onClick={() => onAction({
+            step: 'position_hands',
+            target: 'sternum_hotspot',
             action: 'POSITION_HANDS',
             targetAccuracy: 95,
             isCorrect: true,

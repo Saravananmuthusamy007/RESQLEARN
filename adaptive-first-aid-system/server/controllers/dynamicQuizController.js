@@ -1,14 +1,12 @@
 const mongoose = require('mongoose');
-const Question = require('../models/Question');
-const MCQAttempt = require('../models/MCQAttempt');
-const PracticalAttempt = require('../models/PracticalAttempt');
 const Level = require('../models/Level');
+const PracticalAttempt = require('../models/PracticalAttempt');
+const DynamicQuiz = require('../models/DynamicQuiz');
+const MCQAttempt = require('../models/MCQAttempt');
 const Progress = require('../models/Progress');
 const User = require('../models/User');
 const Certificate = require('../models/Certificate');
-const DynamicQuiz = require('../models/DynamicQuiz');
-const { generateDynamicQuiz } = require('../services/dynamicQuizGenerator');
-const { recommendQuestionSet } = require('../services/ruleEngine');
+const { generateDynamicQuiz, getDifficultyTier } = require('../services/dynamicQuizGenerator');
 
 // Helper to resolve level document from ObjectId or numeric order
 async function resolveLevel(levelId) {
@@ -23,10 +21,10 @@ async function resolveLevel(levelId) {
   return null;
 }
 
-// @desc    Get adaptively selected MCQ question set for level with threshold enforcement
-// @route   GET /api/mcq/:levelId/next-set
+// @desc    Generate a 100% dynamic, Gemini-driven MCQ quiz tailored to learner telemetry
+// @route   POST /api/levels/:levelId/generate-dynamic-quiz
 // @access  Private (Learner & Admin)
-exports.getNextSet = async (req, res) => {
+exports.generateDynamicQuizHandler = async (req, res) => {
   try {
     const { levelId } = req.params;
     const userId = req.user.id;
@@ -37,8 +35,9 @@ exports.getNextSet = async (req, res) => {
     }
 
     const levelDocId = level._id;
+    const levelOrder = level.order;
 
-    // Threshold Verification: Ensure learner has completed and passed practical simulation
+    // Fetch latest practical attempt for telemetry verification
     const latestPractical = await PracticalAttempt.findOne({ user: userId, level: levelDocId }).sort({ createdAt: -1 });
 
     const practicalThreshold = Number(level.practicalThreshold) || 75;
@@ -46,7 +45,7 @@ exports.getNextSet = async (req, res) => {
     if (req.user.role !== 'admin') {
       if (!latestPractical) {
         return res.status(403).json({
-          message: 'Practical simulation must be completed before accessing the adaptive MCQ assessment.',
+          message: 'Practical simulation must be completed before generating the dynamic MCQ quiz.',
           practicalPassed: false,
           requiredThreshold: practicalThreshold,
           currentScore: 0,
@@ -67,81 +66,82 @@ exports.getNextSet = async (req, res) => {
       }
     }
 
-    const previousMcqAttempts = await MCQAttempt.find({ user: userId, level: levelDocId }).sort({ attemptNumber: 1 });
-    const attemptNumber = previousMcqAttempts.length + 1;
+    // Extract simulation score and weak tags from body if supplied, or fall back to latestPractical
+    const rawScore = req.body.simulationScore !== undefined
+      ? Number(req.body.simulationScore)
+      : (latestPractical ? latestPractical.compositeScore : 80);
+    const simulationScore = Math.max(0, Math.min(100, Math.round(rawScore)));
 
-    // Check for existing active dynamic quiz session
-    let dynamicQuiz = await DynamicQuiz.findOne({
+    const weakTags = Array.isArray(req.body.weakTags) && req.body.weakTags.length > 0
+      ? req.body.weakTags
+      : (latestPractical?.weakAreas || latestPractical?.geminiEvaluation?.recommendedFocusTags || []);
+
+    // Generate dynamic quiz with Gemini 2.5 Flash
+    const quizResult = await generateDynamicQuiz({
+      levelOrder,
+      simulationScore,
+      weakTags
+    });
+
+    // Remove any previous uncompleted dynamic quiz for this user & level
+    await DynamicQuiz.deleteMany({
       user: userId,
       level: levelDocId,
       isCompleted: false
-    }).sort({ createdAt: -1 });
+    });
 
-    // If no active dynamic quiz, generate a new Gemini-driven quiz on the fly
-    if (!dynamicQuiz) {
-      const simulationScore = latestPractical ? latestPractical.compositeScore : 80;
-      const weakTags = latestPractical?.weakAreas || latestPractical?.geminiEvaluation?.recommendedFocusTags || [];
+    // Persist new dynamic quiz in MongoDB
+    const dynamicQuiz = new DynamicQuiz({
+      user: userId,
+      level: levelDocId,
+      levelOrder,
+      simulationScore,
+      simulationAttempt: latestPractical ? latestPractical._id : null,
+      weakTags,
+      difficultyTier: quizResult.difficultyTier,
+      questions: quizResult.questions
+    });
 
-      const quizResult = await generateDynamicQuiz({
-        levelOrder: level.order,
-        simulationScore,
-        weakTags
-      });
+    await dynamicQuiz.save();
 
-      dynamicQuiz = new DynamicQuiz({
-        user: userId,
-        level: levelDocId,
-        levelOrder: level.order,
-        simulationScore,
-        simulationAttempt: latestPractical ? latestPractical._id : null,
-        weakTags,
-        difficultyTier: quizResult.difficultyTier,
-        questions: quizResult.questions
-      });
-
-      await dynamicQuiz.save();
-    }
-
-    // Sanitize output (exclude correctOptionIndex)
-    const sanitizedQuestions = dynamicQuiz.questions.map(q => ({
-      _id: q.id,
+    // Prepare client-safe sanitized questions (enforcing exact schema: id, question, options, difficulty, clinicalRationale)
+    const sanitizedQuestions = quizResult.questions.map(q => ({
       id: q.id,
+      _id: q.id,
       question: q.question,
       questionText: q.question,
       options: q.options,
       difficulty: q.difficulty,
-      clinicalRationale: q.clinicalRationale,
-      tags: [q.difficulty]
+      clinicalRationale: q.clinicalRationale
     }));
 
-    const difficultyTier = dynamicQuiz.difficultyTier || 'intermediate';
-    let dynamicReason = `Based on your simulation score of ${dynamicQuiz.simulationScore}%, 5 dynamic ${difficultyTier} MCQs were generated to test clinical competency.`;
-
-    res.json({
-      questions: sanitizedQuestions,
-      reason: dynamicReason,
-      attemptNumber,
+    res.status(201).json({
+      levelId: levelDocId,
+      levelOrder,
+      levelTitle: level.title,
+      difficultyTier: quizResult.difficultyTier,
+      adaptiveCategory: quizResult.difficultyTier,
+      reason: quizResult.reason,
+      simulationScore,
       mcqThreshold: level.mcqThreshold || 75,
+      aiGenerated: quizResult.aiGenerated,
       totalQuestions: sanitizedQuestions.length,
-      adaptiveCategory: difficultyTier,
-      difficultyTier,
-      simulationScore: dynamicQuiz.simulationScore,
-      practicalScore: latestPractical ? latestPractical.compositeScore : 80
+      questions: sanitizedQuestions
     });
   } catch (error) {
-    console.error('Error generating adaptive MCQ question set:', error.message);
-    res.status(500).json({ message: 'Server error generating question set' });
+    console.error('Error generating dynamic Gemini quiz:', error);
+    res.status(500).json({ message: 'Server error generating dynamic quiz', error: error.message });
   }
 };
 
-// @desc    Submit MCQ answer set and grade attempt
-// @route   POST /api/mcq/:levelId/submit
+// @desc    Submit answers for dynamic quiz and grade attempt
+// @route   POST /api/levels/:levelId/submit-dynamic-quiz
 // @access  Private (Learner & Admin)
-exports.submitAnswers = async (req, res) => {
+exports.submitDynamicQuizHandler = async (req, res) => {
   try {
     const { levelId } = req.params;
     const userId = req.user.id;
-    const { answers } = req.body; // Array of { questionId, selectedOption }
+    const { answers } = req.body; // Array of { questionId (or id), selectedOption }
 
     if (!answers || !Array.isArray(answers) || answers.length === 0) {
       return res.status(400).json({ message: 'Answers payload is required.' });
@@ -154,13 +154,14 @@ exports.submitAnswers = async (req, res) => {
 
     const levelDocId = level._id;
 
-    // Check for active dynamic quiz for this user and level
+    // Fetch active dynamic quiz for this user and level
     let dynamicQuiz = await DynamicQuiz.findOne({
       user: userId,
       level: levelDocId,
       isCompleted: false
     }).sort({ createdAt: -1 });
 
+    // If none found uncompleted, fall back to most recent dynamic quiz
     if (!dynamicQuiz) {
       dynamicQuiz = await DynamicQuiz.findOne({
         user: userId,
@@ -168,80 +169,58 @@ exports.submitAnswers = async (req, res) => {
       }).sort({ createdAt: -1 });
     }
 
-    let correctCount = 0;
-    const gradedQuestions = [];
-    let detailedResults = [];
-
-    if (dynamicQuiz && dynamicQuiz.questions && dynamicQuiz.questions.length > 0) {
-      const answerMap = new Map();
-      answers.forEach(a => {
-        const qId = a.questionId !== undefined ? Number(a.questionId) : Number(a.id);
-        answerMap.set(qId, Number(a.selectedOption));
+    if (!dynamicQuiz || !dynamicQuiz.questions || dynamicQuiz.questions.length === 0) {
+      return res.status(404).json({
+        message: 'No active dynamic quiz session found for this level. Please generate a dynamic quiz first.'
       });
-
-      dynamicQuiz.questions.forEach((q, idx) => {
-        const qId = q.id || idx + 1;
-        const selectedOption = answerMap.has(qId) ? answerMap.get(qId) : 0;
-        const isCorrect = selectedOption === q.correctOptionIndex;
-        if (isCorrect) correctCount++;
-
-        gradedQuestions.push({
-          dynamicQuestion: {
-            id: q.id,
-            question: q.question,
-            options: q.options,
-            difficulty: q.difficulty,
-            clinicalRationale: q.clinicalRationale,
-            correctOptionIndex: q.correctOptionIndex
-          },
-          selectedOption,
-          correct: isCorrect,
-          tagsFromQuestion: [q.difficulty]
-        });
-
-        detailedResults.push({
-          questionId: q.id,
-          id: q.id,
-          question: q.question,
-          questionText: q.question,
-          options: q.options,
-          selectedOption,
-          correctOptionIndex: q.correctOptionIndex,
-          correct: isCorrect,
-          explanation: q.clinicalRationale
-        });
-      });
-
-      dynamicQuiz.isCompleted = true;
-      await dynamicQuiz.save();
-    } else {
-      for (const ans of answers) {
-        const qDoc = await Question.findById(ans.questionId);
-        if (!qDoc) continue;
-
-        const isCorrect = qDoc.correctOptionIndex === Number(ans.selectedOption);
-        if (isCorrect) correctCount++;
-
-        gradedQuestions.push({
-          question: qDoc._id,
-          selectedOption: Number(ans.selectedOption),
-          correct: isCorrect,
-          tagsFromQuestion: qDoc.tags || []
-        });
-
-        detailedResults.push({
-          questionId: qDoc._id,
-          questionText: qDoc.questionText,
-          options: qDoc.options,
-          selectedOption: Number(ans.selectedOption),
-          correctOptionIndex: qDoc.correctOptionIndex,
-          correct: isCorrect,
-          explanation: qDoc.explanation || 'Review emergency first-aid guidelines.'
-        });
-      }
     }
 
-    const totalQuestions = gradedQuestions.length;
+    // Map answers by question id
+    const answerMap = new Map();
+    answers.forEach(a => {
+      const qId = a.questionId !== undefined ? Number(a.questionId) : Number(a.id);
+      answerMap.set(qId, Number(a.selectedOption));
+    });
+
+    let correctCount = 0;
+    const gradedQuestions = [];
+    const detailedResults = [];
+
+    dynamicQuiz.questions.forEach((q, idx) => {
+      const qId = q.id || idx + 1;
+      const selectedOption = answerMap.has(qId) ? answerMap.get(qId) : 0;
+      const isCorrect = selectedOption === q.correctOptionIndex;
+
+      if (isCorrect) correctCount++;
+
+      gradedQuestions.push({
+        dynamicQuestion: {
+          id: q.id,
+          question: q.question,
+          options: q.options,
+          difficulty: q.difficulty,
+          clinicalRationale: q.clinicalRationale,
+          correctOptionIndex: q.correctOptionIndex
+        },
+        selectedOption,
+        correct: isCorrect,
+        tagsFromQuestion: [q.difficulty]
+      });
+
+      detailedResults.push({
+        questionId: q.id,
+        id: q.id,
+        question: q.question,
+        questionText: q.question,
+        options: q.options,
+        selectedOption,
+        correctOptionIndex: q.correctOptionIndex,
+        correct: isCorrect,
+        explanation: q.clinicalRationale
+      });
+    });
+
+    const totalQuestions = dynamicQuiz.questions.length;
     const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
     const passed = score >= (level.mcqThreshold || 75);
 
@@ -259,7 +238,11 @@ exports.submitAnswers = async (req, res) => {
 
     await attempt.save();
 
-    // Update Progress model
+    // Mark dynamic quiz as completed
+    dynamicQuiz.isCompleted = true;
+    await dynamicQuiz.save();
+
+    // Update Learner Progress
     let progress = await Progress.findOne({ user: userId, level: levelDocId });
     if (!progress) {
       progress = new Progress({ user: userId, level: levelDocId, unlocked: true });
@@ -269,7 +252,6 @@ exports.submitAnswers = async (req, res) => {
       progress.mcqPassed = true;
     }
 
-    // Check if both practical and MCQ are passed -> Level completed!
     let levelCompleted = false;
     let nextLevelUnlocked = false;
 
@@ -278,7 +260,7 @@ exports.submitAnswers = async (req, res) => {
       progress.completedAt = Date.now();
       levelCompleted = true;
 
-      // Auto-unlock next level if available!
+      // Auto-unlock next level if exists
       const nextLevel = await Level.findOne({ order: level.order + 1 });
       if (nextLevel) {
         let nextProgress = await Progress.findOne({ user: userId, level: nextLevel._id });
@@ -295,7 +277,7 @@ exports.submitAnswers = async (req, res) => {
         nextLevelUnlocked = true;
       }
 
-      // Auto-issue & persist Certificate for this level in MongoDB
+      // Auto-issue Certificate for this level
       try {
         const userObj = await User.findById(userId).select('name email');
         const latestPractical = await PracticalAttempt.findOne({ user: userId, level: levelDocId, passed: true }).sort({ createdAt: -1 });
@@ -362,7 +344,7 @@ exports.submitAnswers = async (req, res) => {
       nextLevelUnlocked
     });
   } catch (error) {
-    console.error('Error submitting MCQ assessment:', error.message);
-    res.status(500).json({ message: 'Server error grading MCQ assessment' });
+    console.error('Error grading dynamic quiz assessment:', error);
+    res.status(500).json({ message: 'Server error grading dynamic quiz', error: error.message });
   }
 };

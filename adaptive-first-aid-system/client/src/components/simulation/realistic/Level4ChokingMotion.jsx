@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUp, Activity, CheckCircle2, User, AlertCircle, Sparkles } from 'lucide-react';
+import AnatomyChokingTorso from '../../simulations/AnatomyChokingTorso';
 
 const Level4ChokingMotion = ({ currentStep, onAction, isFinished }) => {
   const [backBlowsCount, setBackBlowsCount] = useState(0);
@@ -19,16 +20,22 @@ const Level4ChokingMotion = ({ currentStep, onAction, isFinished }) => {
 
     if (next >= targetBlows) {
       onAction({
+        step: 'back_blows',
+        target: 'interscapular_zone',
         action: 'PERFORM_BACK_BLOWS',
         targetAccuracy: 95,
         isCorrect: true,
+        count: targetBlows,
         feedback: '5 sharp back blows delivered between shoulder blades with heel of hand!'
       });
     } else {
       onAction({
+        step: 'back_blows',
+        target: 'interscapular_zone',
         action: 'PERFORM_BACK_BLOWS',
         targetAccuracy: 95,
         isCorrect: true,
+        count: next,
         feedback: `Back blow ${next}/${targetBlows} administered.`,
         autoAdvance: false
       });
@@ -38,6 +45,8 @@ const Level4ChokingMotion = ({ currentStep, onAction, isFinished }) => {
   const handleAbdominalThrust = () => {
     if (backBlowsCount < targetBlows) {
       onAction({
+        step: 'abdominal_thrusts',
+        target: 'subdiaphragmatic',
         action: 'PERFORM_ABDOMINAL_THRUSTS',
         targetAccuracy: 50,
         isCorrect: false,
@@ -55,12 +64,21 @@ const Level4ChokingMotion = ({ currentStep, onAction, isFinished }) => {
     if (next >= targetThrusts) {
       setObjectExpelled(true);
       onAction({
+        step: 'abdominal_thrusts',
+        target: 'subdiaphragmatic',
         action: 'PERFORM_ABDOMINAL_THRUSTS',
         targetAccuracy: 95,
         isCorrect: true,
+        vector: 'upward_inward',
+        angle: '45_deg',
+        vectorAccuracy: 95,
+        force: thrustForce,
+        count: targetThrusts,
         feedback: '5 quick inward & upward abdominal thrusts delivered with optimal force!'
       });
       onAction({
+        step: 'choking_resolved',
+        target: 'airway',
         action: 'COMPLETE',
         targetAccuracy: 100,
         isCorrect: true,
@@ -68,9 +86,16 @@ const Level4ChokingMotion = ({ currentStep, onAction, isFinished }) => {
       });
     } else {
       onAction({
+        step: 'abdominal_thrusts',
+        target: 'subdiaphragmatic',
         action: 'PERFORM_ABDOMINAL_THRUSTS',
         targetAccuracy: 90,
         isCorrect: true,
+        vector: 'upward_inward',
+        angle: '45_deg',
+        vectorAccuracy: 90,
+        force: thrustForce,
+        count: next,
         feedback: `Abdominal thrust ${next}/${targetThrusts} delivered: Quick upward motion (${thrustForce}% Force).`,
         autoAdvance: false
       });
@@ -79,73 +104,18 @@ const Level4ChokingMotion = ({ currentStep, onAction, isFinished }) => {
 
   return (
     <div className="w-full max-w-2xl flex flex-col items-center space-y-6">
-      {/* Patient Torso & Directional Thrust Hotspot Canvas */}
-      <div className="relative w-full max-w-md h-64 bg-slate-900 rounded-3xl border-2 border-slate-700/80 flex items-center justify-center overflow-hidden shadow-inner p-4">
-        {/* Dislodged Airway Object Ejection Animation */}
-        {objectExpelled && (
-          <motion.div
-            initial={{ y: 0, scale: 0.5, opacity: 1 }}
-            animate={{ y: -70, x: 40, scale: 1.2, opacity: 0 }}
-            transition={{ duration: 0.8 }}
-            className="absolute top-16 z-30 p-2 bg-amber-400 text-slate-950 rounded-full font-black text-[10px] uppercase shadow-xl flex items-center gap-1"
-          >
-            <Sparkles className="w-4 h-4" /> Foreign Object Cleared!
-          </motion.div>
-        )}
-
-        {/* Anatomical Standing Patient Silhouette */}
-        <motion.div
-          animate={isThrusting ? { y: -8, scaleY: 0.96 } : { y: 0, scaleY: 1 }}
-          transition={{ type: 'spring', stiffness: 600, damping: 12 }}
-          className="relative w-52 h-56 bg-slate-800 rounded-t-[40px] rounded-b-2xl border border-slate-600/60 p-3 flex flex-col items-center shadow-lg"
-        >
-          {/* Head & Neck */}
-          <div className="w-16 h-10 bg-slate-700 rounded-t-full -mt-9 border-t border-x border-slate-600/60 flex items-center justify-center">
-            {objectExpelled ? (
-              <span className="text-xs">😮💨</span>
-            ) : (
-              <span className="text-xs">😨</span>
-            )}
-          </div>
-
-          {/* Ribcage Outline */}
-          <div className="w-full text-center mt-2">
-            <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
-              Xiphoid Process & Ribcage
-            </span>
-            <div className="w-28 h-1 bg-slate-600/40 mx-auto rounded-full mt-1" />
-          </div>
-
-          {/* Upward Abdominal Thrust Target Hotspot */}
-          <div className="mt-4 relative flex flex-col items-center">
-            {/* Directional Force & Angle Arrow Prompt */}
-            <motion.div
-              animate={{ y: [-4, -12, -4], opacity: [0.7, 1, 0.7] }}
-              transition={{ duration: 0.8, repeat: Infinity }}
-              className="flex items-center gap-1 text-cyan-400 font-black text-[10px] uppercase tracking-wider mb-1"
-            >
-              <ArrowUp className="w-4 h-4" />
-              <span>Inward & Upward Force</span>
-            </motion.div>
-
-            {/* Interactive Hotspot Button */}
-            <motion.button
-              whileTap={{ scale: 0.92 }}
-              onClick={handleAbdominalThrust}
-              className={`w-24 h-20 rounded-2xl flex flex-col items-center justify-center p-2 shadow-2xl transition border-4 ${
-                backBlowsCount >= targetBlows && thrustsCount < targetThrusts
-                  ? 'bg-gradient-to-t from-cyan-600 to-blue-600 border-cyan-400 text-white cursor-pointer hover:shadow-cyan-500/50'
-                  : 'bg-slate-800 border-slate-700 text-slate-500'
-              }`}
-            >
-              <ArrowUp className="w-6 h-6 text-yellow-300" />
-              <span className="text-[9px] font-black uppercase text-center mt-0.5">
-                Thrust Hotspot (Above Navel)
-              </span>
-            </motion.button>
-          </div>
-        </motion.div>
-      </div>
+      {/* Clinical 2D Lateral Torso & Upward Thrust Gesture Simulation */}
+      <AnatomyChokingTorso
+        backBlowsCount={backBlowsCount}
+        targetBlows={targetBlows}
+        thrustsCount={thrustsCount}
+        targetThrusts={targetThrusts}
+        objectExpelled={objectExpelled}
+        isThrusting={isThrusting}
+        onBackBlow={handleBackBlow}
+        onAbdominalThrust={handleAbdominalThrust}
+        disabled={isFinished}
+      />
 
       {/* Force Slider & Angle Indicator Telemetry */}
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
@@ -177,6 +147,8 @@ const Level4ChokingMotion = ({ currentStep, onAction, isFinished }) => {
       <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <button
           onClick={() => onAction({
+            step: 'verify_choking',
+            target: 'airway_obstruction',
             action: 'IDENTIFY_CHOKING',
             targetAccuracy: 100,
             isCorrect: true,
@@ -218,6 +190,8 @@ const Level4ChokingMotion = ({ currentStep, onAction, isFinished }) => {
 
         <button
           onClick={() => onAction({
+            step: 'assess_cough',
+            target: 'airway_check',
             action: 'ENCOURAGE_COUGH',
             targetAccuracy: 95,
             isCorrect: true,

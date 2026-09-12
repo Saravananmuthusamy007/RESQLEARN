@@ -29,6 +29,7 @@ const PracticalAssessment = () => {
   const [totalSteps, setTotalSteps] = useState(7);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [mistakesCount, setMistakesCount] = useState(0);
+  const [mistakeTags, setMistakeTags] = useState([]);
   const [estimatedScore, setEstimatedScore] = useState(100);
   const [feedback, setFeedback] = useState(null);
   const [resultData, setResultData] = useState(null);
@@ -80,8 +81,13 @@ const PracticalAssessment = () => {
     onAction: (data) => {
       if (data.mistakesCount !== undefined) {
         setMistakesCount(data.mistakesCount);
-        const est = Math.max(20, 100 - data.mistakesCount * 10);
+        const est = data.estimatedScore !== undefined
+          ? data.estimatedScore
+          : Math.max(0, 100 - data.mistakesCount * 10);
         setEstimatedScore(est);
+      }
+      if (data.mistakeTags && Array.isArray(data.mistakeTags)) {
+        setMistakeTags((prev) => [...new Set([...prev, ...data.mistakeTags])]);
       }
     },
 
@@ -90,23 +96,84 @@ const PracticalAssessment = () => {
     },
 
     onMistake: (data) => {
-      setMistakesCount((prev) => prev + 1);
+      setMistakesCount((prev) => (data?.mistakesCount !== undefined ? data.mistakesCount : prev + 1));
+      if (data?.tag) {
+        setMistakeTags((prev) => [...new Set([...prev, data.tag])]);
+      }
+      setEstimatedScore((prev) => Math.max(0, prev - 10));
     },
 
     onComplete: async (completionData) => {
       if (timerRef.current) clearInterval(timerRef.current);
 
       try {
-        const response = await submitPracticalAttempt(levelId, completionData);
+        const genuineMistakes = completionData.mistakes !== undefined ? completionData.mistakes : mistakesCount;
+        const genuineSeqErrors = completionData.sequenceErrors !== undefined
+          ? completionData.sequenceErrors
+          : (completionData.outOfSeq !== undefined ? completionData.outOfSeq : 0);
+        const genuineTimeSec = Number((completionData.responseTimeMs ? completionData.responseTimeMs / 1000 : elapsedSeconds).toFixed(1));
+        const genuineTags = [...new Set([...(completionData.mistakeTags || []), ...(mistakeTags || [])])];
+
+        const payload = {
+          levelId: completionData.levelId || levelOrder,
+          actions: completionData.actions || [
+            { step: 'clinical_procedure', target: 'simulation_scene', timestamp: elapsedSeconds * 1000, correct: (completionData.finalScore || 100) >= 75 }
+          ],
+          metrics: {
+            totalResponseTime: genuineTimeSec,
+            attempts: completionData.attempts || 1,
+            sequenceErrors: genuineSeqErrors,
+            incorrectTargets: genuineMistakes
+          },
+          mistakes: genuineMistakes,
+          sequenceErrors: genuineSeqErrors,
+          totalResponseTime: genuineTimeSec,
+          estScore: completionData.finalScore || estimatedScore,
+          mistakeTags: genuineTags,
+          weakAreas: completionData.weakAreas && completionData.weakAreas.length > 0 ? completionData.weakAreas : genuineTags,
+          ...completionData
+        };
+        const response = await submitPracticalAttempt(levelId, payload);
+        const finalScore = response.finalScore || completionData.finalScore;
+        const practicalThreshold = Number(response.practicalThreshold || completionData.practicalThreshold || 75);
+        const PASS_THRESHOLD = practicalThreshold;
+        const isPassed = (response.passed !== undefined ? Boolean(response.passed) : Boolean(completionData.passed)) || (finalScore >= PASS_THRESHOLD);
+        const identifiedWeakAreas = response.weakAreas && response.weakAreas.length > 0
+          ? response.weakAreas
+          : (genuineTags.length > 0 ? genuineTags : (completionData.weakAreas || []));
+
+        // Stage 2: Immediately trigger Dynamic Gemini Question Generation upon completion
+        if (isPassed) {
+          api.post(`/levels/${levelId}/generate-dynamic-quiz`, {
+            simulationScore: finalScore,
+            weakTags: identifiedWeakAreas
+          }).catch((quizErr) => {
+            console.warn('[PracticalAssessment] Pre-generation of dynamic quiz notice:', quizErr.message);
+          });
+        }
+
         setResultData({
           ...completionData,
-          finalScore: response.finalScore || completionData.finalScore,
-          passed: response.passed !== undefined ? response.passed : completionData.passed,
-          weakAreas: response.weakAreas || completionData.weakAreas
+          finalScore,
+          passed: isPassed,
+          practicalThreshold,
+          weakAreas: identifiedWeakAreas,
+          clinicalCritique: response.clinicalCritique,
+          remediation: response.remediation,
+          recommendedMCQDifficulty: response.recommendedMCQDifficulty,
+          difficultyMix: response.difficultyMix,
+          aiEvaluated: response.aiEvaluated
         });
       } catch (err) {
         console.error('Failed to submit simulation results:', err);
-        setResultData(completionData);
+        const fallbackThreshold = Number(completionData.practicalThreshold || 75);
+        const fallbackScore = Number(completionData.finalScore || estimatedScore || 0);
+        setResultData({
+          ...completionData,
+          finalScore: fallbackScore,
+          practicalThreshold: fallbackThreshold,
+          passed: Boolean(completionData.passed) || (fallbackScore >= fallbackThreshold)
+        });
       }
     }
   };
@@ -114,6 +181,7 @@ const PracticalAssessment = () => {
   const handleRetry = () => {
     setResultData(null);
     setMistakesCount(0);
+    setMistakeTags([]);
     setEstimatedScore(100);
     setStepIndex(0);
     startTimer();

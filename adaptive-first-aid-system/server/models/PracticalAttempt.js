@@ -69,13 +69,37 @@ const practicalAttemptSchema = new mongoose.Schema({
   ],
   actions: [
     {
+      step: String,
+      target: String,
       action: String,
       timestamp: Number,
       correct: Boolean,
       targetAccuracy: Number,
-      feedback: String
+      feedback: String,
+      details: mongoose.Schema.Types.Mixed
     }
   ],
+  metrics: {
+    totalResponseTime: Number,
+    attempts: Number,
+    sequenceErrors: Number,
+    incorrectTargets: Number
+  },
+  geminiEvaluation: {
+    clinicalCritique: String,
+    remediation: String,
+    recommendedDifficulty: String,
+    difficultyMix: {
+      easy: Number,
+      medium: Number,
+      hard: Number
+    },
+    recommendedFocusTags: [String],
+    aiEvaluated: {
+      type: Boolean,
+      default: false
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now
