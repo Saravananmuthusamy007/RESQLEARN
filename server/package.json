@@ -1,0 +1,32 @@
+{
+  "name": "resqlearn-server",
+  "version": "1.0.0",
+  "description": "ResqLearn Backend API & Telemetry Scoring Engine",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node seed/seedRunner.js",
+    "test": "node test/runTests.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5"
+  },
+  "keywords": [
+    "first-aid",
+    "simulation",
+    "cpr",
+    "gemini",
+    "telemetry",
+    "assessment"
+  ],
+  "author": "ResqLearn Team",
+  "license": "ISC"
+}
