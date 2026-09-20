@@ -14,6 +14,7 @@ import {
   Play,
   Clock,
   ShieldCheck,
+  Shield,
 } from 'lucide-react';
 
 export const Dashboard = () => {
@@ -62,6 +63,30 @@ export const Dashboard = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Medical Director Banner if Admin is viewing Learner Dashboard */}
+      {user?.role === 'admin' && (
+        <div className="rounded-2xl p-4 bg-purple-950/70 border border-purple-800 text-purple-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-900 border border-purple-700 flex items-center justify-center text-purple-300 flex-shrink-0">
+              <Shield className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white">Medical Simulation Director Account (Admin)</div>
+              <div className="text-[11px] text-purple-300">
+                You are currently previewing the cadet training dashboard. Access your dedicated portal to review telemetry, update levels, read feedback, and query Admin AI.
+              </div>
+            </div>
+          </div>
+          <Link
+            to="/admin"
+            className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center space-x-1.5 shadow-md flex-shrink-0 transition-all font-mono"
+          >
+            <span>Open Admin Dashboard</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
+
       {/* Welcome Hero Banner */}
       <div className="relative rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-2xl overflow-hidden">
         <div className="absolute right-0 top-0 w-80 h-80 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />

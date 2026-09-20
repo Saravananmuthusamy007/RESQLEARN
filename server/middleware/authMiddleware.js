@@ -1,9 +1,8 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'resqlearn_super_secure_jwt_secret_key_2026';
-
 export const protect = async (req, res, next) => {
+  const JWT_SECRET = process.env.JWT_SECRET || 'resqlearn_super_secret_jwt_key_2026';
   let token = null;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {

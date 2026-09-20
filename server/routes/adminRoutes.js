@@ -1,5 +1,6 @@
 import express from 'express';
 import { getAnalytics, getLearners, getLearnerDetails } from '../controllers/adminController.js';
+import { chatWithAdmin } from '../controllers/aiController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -10,5 +11,6 @@ router.use(authorize('admin'));
 router.get('/analytics', getAnalytics);
 router.get('/learners', getLearners);
 router.get('/learners/:id', getLearnerDetails);
+router.post('/ai/chat', chatWithAdmin);
 
 export default router;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Layouts
 import LearnerLayout from './layouts/LearnerLayout';
@@ -31,12 +31,22 @@ import DemoPlayPage from './pages/admin/DemoPlayPage';
 import AdminAIPartnerPage from './pages/admin/AdminAIPartnerPage';
 import FeedbackAdminPage from './pages/admin/FeedbackAdminPage';
 import AdminProfilePage from './pages/admin/AdminProfilePage';
+const RootRedirect = () => {
+  const { user, isAdmin, loading } = useAuth();
+  if (loading) return null;
+  if (isAdmin) return <Navigate to="/admin" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <Navigate to="/login" replace />;
+};
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <Routes>
+          {/* Intelligent Root Routing */}
+          <Route path="/" element={<RootRedirect />} />
+
           {/* Public Auth Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -44,7 +54,6 @@ function App() {
 
           {/* Learner Protected Routes */}
           <Route element={<LearnerLayout />}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/levels" element={<LevelsList />} />
             <Route path="/levels/:id/learn" element={<LearningModule />} />
@@ -69,7 +78,7 @@ function App() {
           </Route>
 
           {/* Catch-all redirect */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<RootRedirect />} />
         </Routes>
       </AuthProvider>
     </Router>

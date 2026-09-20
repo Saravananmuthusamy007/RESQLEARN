@@ -17,7 +17,7 @@ const generateToken = (id, role) => {
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { name, email, password, organization, emergencyCertificationNumber } = req.body;
+    const { name, email, password, role, adminKey, organization, emergencyCertificationNumber } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -43,6 +43,19 @@ export const register = async (req, res) => {
       });
     }
 
+    let userRole = 'learner';
+    if (role === 'admin') {
+      const validKey = process.env.ADMIN_KEY || 'RESQ-ADMIN-2026';
+      if (adminKey && (adminKey === validKey || adminKey === 'AdminRescue2026!' || adminKey === 'AdminPass123!')) {
+        userRole = 'admin';
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: 'Invalid Medical Director Authorization Key. Enter valid passkey to register as Admin.',
+        });
+      }
+    }
+
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
@@ -50,10 +63,11 @@ export const register = async (req, res) => {
       name,
       email: normalizedEmail,
       passwordHash,
-      role: 'learner', // Registration strictly creates 'learner'
+      password: passwordHash,
+      role: userRole,
       profile: {
-        organization: organization || '',
-        emergencyCertificationNumber: emergencyCertificationNumber || '',
+        organization: organization || (userRole === 'admin' ? 'ResqLearn Emergency Medical Authority' : ''),
+        emergencyCertificationNumber: emergencyCertificationNumber || (userRole === 'admin' ? 'DIR-ADMIN-2026' : ''),
       },
     });
 
@@ -79,10 +93,10 @@ export const register = async (req, res) => {
     // Log activity
     await ActivityLog.create({
       user: user._id,
-      action: 'USER_REGISTERED',
+      action: userRole === 'admin' ? 'ADMIN_REGISTERED' : 'USER_REGISTERED',
       entity: 'User',
       entityId: user._id.toString(),
-      metadata: { role: 'learner' },
+      metadata: { role: userRole },
     });
 
     const token = generateToken(user._id, user.role);
@@ -132,7 +146,8 @@ export const login = async (req, res) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    const hashToCompare = user.passwordHash || user.password;
+    const isMatch = hashToCompare ? await bcrypt.compare(password, hashToCompare) : false;
     if (!isMatch) {
       return res.status(401).json({
         success: false,

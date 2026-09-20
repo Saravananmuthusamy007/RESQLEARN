@@ -27,10 +27,12 @@ export const Navbar = () => {
   const adminNavLinks = [
     { name: 'Admin Dashboard', path: '/admin', icon: Activity },
     { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
-    { name: 'Learners', path: '/admin/learners', icon: Users },
-    { name: 'Level Editor', path: '/admin/levels', icon: BookOpen },
-    { name: 'Demo Play', path: '/admin/demo', icon: PlaySquare },
+    { name: 'Update Levels', path: '/admin/levels', icon: BookOpen },
+    { name: 'Feedback', path: '/admin/feedback', icon: MessageSquare },
     { name: 'Admin AI', path: '/admin/learning-partner', icon: Bot },
+    { name: 'Learners', path: '/admin/learners', icon: Users },
+    { name: 'Demo Play', path: '/admin/demo', icon: PlaySquare },
+    { name: 'Profile', path: '/admin/profile', icon: User },
   ];
 
   const currentLinks = isAdmin ? adminNavLinks : learnerNavLinks;

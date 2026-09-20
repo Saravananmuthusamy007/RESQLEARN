@@ -18,6 +18,7 @@ const feedbackSchema = new mongoose.Schema(
       required: true,
       enum: [
         'Simulation UX',
+        'Simulation Realism',
         'Clinical Accuracy',
         'Adaptive Assessment',
         'Bug Report',

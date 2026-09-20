@@ -18,7 +18,9 @@ const userSchema = new mongoose.Schema(
     },
     passwordHash: {
       type: String,
-      required: [true, 'Password is required'],
+    },
+    password: {
+      type: String,
     },
     role: {
       type: String,
@@ -34,6 +36,7 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    collection: 'users',
   }
 );
 

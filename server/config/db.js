@@ -6,9 +6,10 @@ export const connectDB = async () => {
   try {
     console.log(`Connecting to MongoDB...`);
     const conn = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 4000,
+      dbName: 'resqlearn',
+      serverSelectionTimeoutMS: 8000,
     });
-    console.log(`[MongoDB Connected]: ${conn.connection.host}/${conn.connection.name}`);
+    console.log(`[MongoDB Atlas Connected]: ${conn.connection.host}/${conn.connection.name}`);
     return conn;
   } catch (err) {
     console.warn(`[Warning]: Direct MongoDB connection to primary URI failed (${err.message}).`);
@@ -18,6 +19,7 @@ export const connectDB = async () => {
       try {
         console.log(`Attempting fallback connection to local MongoDB (localhost:27017/resqlearn)...`);
         const fallbackConn = await mongoose.connect('mongodb://localhost:27017/resqlearn', {
+          dbName: 'resqlearn',
           serverSelectionTimeoutMS: 3000,
         });
         console.log(`[MongoDB Fallback Connected]: Local MongoDB active at ${fallbackConn.connection.host}/${fallbackConn.connection.name}`);
